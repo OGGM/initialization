@@ -63,6 +63,7 @@ def _run_parallel_experiment(gdir):
         model2 = tasks.run_from_climate_data(gdir, ys=1850, ye=2000,
                                              init_model_fls=fls,
                                              output_filesuffix='experiment')
+        print(model2.yr,model2.volume_m3)
         y_t = copy.deepcopy(model2)
 
         # save output in gdir_dir
@@ -172,7 +173,7 @@ def find_candidates(gdir, experiment, df, ys, ye, n):
     candidates = candidates.drop_duplicates()
     fls_list = []
     for i in candidates.index:
-        s = candidates.loc[int(i), ' suffix'].split('_random')[-1]
+        s = candidates.loc[int(i), 'suffix'].split('_random')[-1]
         suffix = str(ys) + '_past' + s + '_'+str(int(candidates.loc[int(i), 'time']))
         fls = candidates.loc[int(i), 'random_model_t0']
         fls_list.append([suffix, fls])
@@ -184,38 +185,36 @@ def find_candidates(gdir, experiment, df, ys, ye, n):
     pool.close()
     pool.join()
 
-    candidates = candidates.assign(past_suffix=path_list)
-    candidates['model_t0'] = candidates['past_suffix'].apply(_read_file_model,
-                                                             args=([gdir]))
-    candidates['model_t'] = candidates['past_suffix'].apply(_run_file_model,
-                                                            args=([gdir, ye]))
-    candidates['objective'] = candidates['model_t'].apply(objective_value,
-                                                          args=([experiment['y_t']]))
-
-    return candidates
-
 
 def find_possible_glaciers(gdir, experiment, y0):
     # find good temp_bias_list
     random_df = find_temp_bias_range(gdir, y0)
-    cand_df = find_candidates(gdir, experiment, df=random_df, ys=y0, ye=2000,
+    find_candidates(gdir, experiment, df=random_df, ys=y0, ye=2000,
                               n=200)
-    return cand_df
 
 
 def find_temp_bias_range(gdir, y0):
+    """
+    creates a pandas.DataFrame() with ALL created states. A subset of them will
+    be tested later
+    :param gdir:oggm.GlacierDirectories
+    :param y0:  int year of serached glaciers
+    :return:    pandas.DataFrame()
+    """
     t_eq = 0
 
     # try range (2,-2) first
     bias_list = [b.round(3) for b in np.arange(-2, 2, 0.05)]
     list = [(i**2, b) for i, b in enumerate(bias_list)]
     random_run_list = _run_random_parallel(gdir, y0, list)
-
-    # smaller temperature bias is still possible to test
-    if random_run_list['temp_bias'].min() == -2:
+    temp_b = -2
+    while random_run_list['temp_bias'].min() == temp_b and temp_b >= -4:
+        print(temp_b)
         n = len(random_run_list)
-        list = [((i+n+1)**2, b.round(3)) for i, b in enumerate(np.arange(-3, -2.05, 0.05))]
+        list = [((i+n+1)**2, b.round(3)) for i, b in enumerate(np.arange(temp_b-1, temp_b-0.05, 0.05))]
         random_run_list = random_run_list.append(_run_random_parallel(gdir, y0, list), ignore_index=True)
+        temp_b = temp_b-1
+
 
     # check for zero glacier
     max_bias = random_run_list['temp_bias'].idxmax()
@@ -247,6 +246,25 @@ def find_temp_bias_range(gdir, y0):
         v = v.assign(suffix=lambda x: suffix)
         all = all.append(v, ignore_index=True)
     return all
+
+
+def get_single_results(gdir,yr,experiment):
+    df = pd.DataFrame()
+    prefix = 'model_run'+str(yr)+'_past'
+    list = [f.split('model_run')[-1].split('.nc')[0] for f in os.listdir(gdir.dir) if
+            f.startswith(prefix)]
+    for f in list:
+        try:
+            rp = gdir.get_filepath('model_run',filesuffix=f)
+            fmod = FileModel(rp)
+            fmod_t = copy.deepcopy(fmod)
+            fmod_t.run_until(2000)
+            obj = objective_value(fmod_t, experiment['y_t'])
+            #fmod.reset_y0(yr)
+            df = df.append({'model':copy.deepcopy(fmod),'objective':obj,'temp_bias':f.split('_')[-2]},ignore_index=True)
+        except:
+            pass
+    return df
 
 
 def objective_value(model1, model2):
