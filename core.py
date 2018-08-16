@@ -228,9 +228,10 @@ def find_temp_bias_range(gdir, y0):
 
     # find t_eq
     for suffix in random_run_list['suffix'].head(10).values:
-        rp = gdir.get_filepath('model_run', filesuffix=suffix)
-        fmod = FileModel(rp)
+
         try:
+            rp = gdir.get_filepath('model_run', filesuffix=suffix)
+            fmod = FileModel(rp)
             t = _find_t_eq(fmod.volume_m3_ts())
             if t > t_eq:
                 t_eq = t
@@ -239,12 +240,15 @@ def find_temp_bias_range(gdir, y0):
 
     all = pd.DataFrame()
     for suffix in random_run_list['suffix']:
-        rp = gdir.get_filepath('model_run', filesuffix=suffix)
-        fmod = FileModel(rp)
-        v = pd.DataFrame(fmod.volume_m3_ts()).reset_index()
-        v = v[v['time'] >= t_eq]
-        v = v.assign(suffix=lambda x: suffix)
-        all = all.append(v, ignore_index=True)
+        try:
+            rp = gdir.get_filepath('model_run', filesuffix=suffix)
+            fmod = FileModel(rp)
+            v = pd.DataFrame(fmod.volume_m3_ts()).reset_index()
+            v = v[v['time'] >= t_eq]
+            v = v.assign(suffix=lambda x: suffix)
+            all = all.append(v, ignore_index=True)
+        except:
+            pass
     return all
 
 
