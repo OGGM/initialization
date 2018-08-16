@@ -261,11 +261,20 @@ def get_single_results(gdir,yr,experiment):
             fmod_t.run_until(2000)
             obj = objective_value(fmod_t, experiment['y_t'])
             #fmod.reset_y0(yr)
-            df = df.append({'model':copy.deepcopy(fmod),'objective':obj,'temp_bias':f.split('_')[-2]},ignore_index=True)
+            df = df.append({'model':copy.deepcopy(fmod),'objective':obj,'temp_bias':f.split('_')[-2],'time':f.split('_')[-1]},ignore_index=True)
         except:
             pass
     return df
 
+
+def objective_value2(model1, model2):
+    """
+    calculates the objective value (difference in geometry)
+    :param model1: oggm.flowline.FluxBasedModel
+    :param model2: oggm.flowline.FluxBasedModel
+    :return:       float
+    """
+    return abs(model1.area_m2-model2.area_m2)
 
 def objective_value(model1, model2):
     """
@@ -287,13 +296,16 @@ def prepare_for_initializing(gdirs):
     :return None, but creates required files
     """
     list_tasks = [
+        tasks.glacier_masks,
         tasks.compute_centerlines,
         tasks.initialize_flowlines,
+        tasks.compute_downstream_line,
+        tasks.compute_downstream_bedshape,
         tasks.catchment_area,
+        tasks.catchment_intersections,
         tasks.catchment_width_geom,
         tasks.catchment_width_correction,
-        tasks.compute_downstream_line,
-        tasks.compute_downstream_bedshape
+        tasks.process_histalp_data
     ]
     for task in list_tasks:
         workflow.execute_entity_task(task, gdirs)
