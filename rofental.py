@@ -22,13 +22,13 @@ if __name__ == '__main__':
 
     # Local paths
     if ON_CLUSTER:
-        cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+        WORKING_DIR = os.environ.get("S_WORKDIR")
     else:
         WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental'
         #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction'
         #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/past_state_information'
         utils.mkdir(WORKING_DIR, reset=False)
-        cfg.PATHS['working_dir'] = WORKING_DIR
+    cfg.PATHS['working_dir'] = WORKING_DIR
 
     cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'], 'plots')
     utils.mkdir(cfg.PATHS['plot_dir'], reset=False)
@@ -82,9 +82,13 @@ if __name__ == '__main__':
     synthetic_experiments_parallel(gdirs)
 
     years = [1850]
-    for gdir in gdirs:
-        try:
-            for yr in years:
+    for gdir in gdirs[:int(len(gdirs)/2)]:
+        for yr in years:
+            cont = False
+            try:
+                fls_exp = gdir.read_pickle('synthetic_experiment')
+                cont = True
+            except:
+                pass
+            if cont==True:
                 find_possible_glaciers(gdir,gdir.read_pickle('synthetic_experiment'),yr)
-        except:
-            print(gdir.rgi_id,' failed')
