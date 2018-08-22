@@ -18,7 +18,7 @@ FlowlineModel = partial(FluxBasedModel, inplace=False)
 
 if __name__ == '__main__':
     cfg.initialize()
-    ON_CLUSTER = True
+    ON_CLUSTER = False
 
     # Local paths
     if ON_CLUSTER:
@@ -78,13 +78,56 @@ if __name__ == '__main__':
 
     # initialization
     gdirs = workflow.init_glacier_regions(rgidf,reset=False)
-    prepare_for_initializing(gdirs)
-    synthetic_experiments_parallel(gdirs)
+    #prepare_for_initializing(gdirs)
+    #synthetic_experiments_parallel(gdirs)
 
-    years = [1850]
+    years = [1850,1875,1900,1925,1950]
+    volumes = pd.DataFrame()
     for gdir in gdirs:
-        try:
+        #plot_climate(gdir,cfg.PATHS['plot_dir'])
+        df_list = {}
+        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')):
             for yr in years:
-                find_possible_glaciers(gdir,gdir.read_pickle('synthetic_experiment'),yr)
-        except:
-            print(gdir.rgi_id,' failed')
+                # find_possible_glaciers(gdir,gdir.read_pickle('synthetic_experiment'),yr)
+                path = os.path.join(gdir.dir, 'result' + str(yr) + '.pkl')
+
+                if os.path.isfile(path) and not pd.read_pickle(path).empty:
+                    df = pd.read_pickle(path)
+
+                else:
+                    df = get_single_results(gdir, yr, gdir.read_pickle(
+                        'synthetic_experiment'))
+                    df.to_pickle(path)
+
+
+                df['volume'] = df['model'].apply(lambda x: x.volume_m3)
+                df['temp_bias'] = df['temp_bias'].apply(lambda x: float(x))
+
+                df_list[str(yr)]=df
+
+                #plot_surface_col(gdir, df, ex_mod, yr, plot_dir)
+                #plot_surface_mean(gdir, df, ex_mod, yr,2000, plot_dir)
+
+
+                max_model = deepcopy(df.loc[df.volume.idxmax(), 'model'])
+
+                max_obj = df.loc[df.volume.idxmax(), 'objective']
+
+                rp = gdir.get_filepath('model_run', filesuffix='experiment')
+                ex_mod = FileModel(rp)
+                v1850 = deepcopy(ex_mod.volume_m3)
+                ex_mod.run_until(2000)
+                v2000 = ex_mod.volume_m3
+                volumes = volumes.append(
+                    {'rgi': gdir.rgi_id, 'ratio(experiment)': v1850 / v2000,
+                     'ratio(max)': df.volume.max() / v2000,
+                     'objective(max)': max_obj, 'temp_bias': df.temp_bias.min()},
+                    ignore_index=True)
+
+                plot_dir=os.path.join(cfg.PATHS['plot_dir'],gdir.rgi_id)
+                utils.mkdir(plot_dir,reset=False)
+            plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
+            plt.show()
+
+        else:
+            print(gdir.rgi_id,' has no experiment')
