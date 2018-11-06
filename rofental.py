@@ -137,7 +137,7 @@ if __name__ == '__main__':
                 m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 #median_df = median_df.append({'rgi': gdir.rgi_id, 'm_mod':m_mod,'ex_p':rp, 'min_mod':df.loc[df['objective'].idxmin(),'model']}, ignore_index=True)
 
-                '''
+'''
 
                 max_model = deepcopy(df.loc[df.volume.idxmax(), 'model'])
 
@@ -180,9 +180,4 @@ if __name__ == '__main__':
 
     median_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental/median.pkl')
     #plot_median_vs_min([median_df,median_oe_df], cfg.PATHS['plot_dir'])
-    '''
-
-
-
-    #plt.show()
-    '''
+'''
