@@ -23,17 +23,21 @@ FlowlineModel = partial(FluxBasedModel, inplace=False)
 
 if __name__ == '__main__':
     cfg.initialize()
-    ON_CLUSTER = True
-
+    
+    ON_CLUSTER_NEW = False
+    ON_CLUSTER_OLD = True
+    
     # Local paths
-    if ON_CLUSTER:
-        cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    if ON_CLUSTER_NEW:
+        WORKING_DIR = os.environ.get("S_WORKDIR")
+    elif ON_CLUSTER_OLD:
+        WORKING_DIR = 'out/rofental'
     else:
         WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental'
         #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction'
         #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/past_state_information'
         utils.mkdir(WORKING_DIR, reset=False)
-        cfg.PATHS['working_dir'] = WORKING_DIR
+    cfg.PATHS['working_dir'] = WORKING_DIR
 
     cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'], 'plots')
     #cfg.PATHS['plot_dir'] = '/home/juliaeis/Dokumente/eigene_paper/reconstruction/plots'
@@ -87,6 +91,7 @@ if __name__ == '__main__':
     prepare_for_initializing(gdirs)
     synthetic_experiments_parallel(gdirs)
 
+
     #years = [1850,1875,1900,1925,1950]
     #years = np.arange(1850, 1970,5)
     years = [1850]
@@ -95,15 +100,17 @@ if __name__ == '__main__':
     #ranged = pd.DataFrame(columns=years)
 
     for gdir in gdirs:
-        #plot_climate(gdir,cfg.PATHS['plot_dir'])
+        print(gdir.dir)
         df_list = {}
         to_range = []
+
         if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')) and gdir.rgi_id.endswith('00779'):
             #ex_mod = gdir.read_pickle('synthetic_experiment')['y_t']
             print(gdir.rgi_id)
             for yr in years:
 
                 find_possible_glaciers(gdir,gdir.read_pickle('synthetic_experiment'),yr)
+
                 path = os.path.join(gdir.dir, 'result' + str(yr) + '.pkl')
 
                 if os.path.isfile(path) and not pd.read_pickle(path).empty:
@@ -150,8 +157,9 @@ if __name__ == '__main__':
                 r = df[df.objective<=100].volume.max()-df[df.objective<=100].volume.min()
                 to_range.append(r)
 
-                plot_dir=os.path.join(cfg.PATHS['plot_dir'],gdir.rgi_id)
+                plot_dir=os.path.join(cfg.PATHS['plot_dir'],'starting')
                 utils.mkdir(plot_dir,reset=False)
+                
             #range.loc[gdir.rgi_id,:] = to_range
 
             #plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
