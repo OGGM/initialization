@@ -18,11 +18,13 @@ FlowlineModel = partial(FluxBasedModel, inplace=False)
 
 if __name__ == '__main__':
     cfg.initialize()
-    ON_CLUSTER = False
-
+    ON_CLUSTER_NEW = False
+    ON_CLUSTER_OLD = True
     # Local paths
-    if ON_CLUSTER:
+    if ON_CLUSTER_NEW:
         WORKING_DIR = os.environ.get("S_WORKDIR")
+    elif ON_CLUSTER_OLD:
+        WORKING_DIR = 'out/rofental'
     else:
         WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental'
         #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction'
@@ -81,12 +83,17 @@ if __name__ == '__main__':
     #prepare_for_initializing(gdirs)
     #synthetic_experiments_parallel(gdirs)
 
-    years = [1850,1875,1900,1925,1950]
+    years = np.arange(1850, 1970,5)
     volumes = pd.DataFrame()
+    range = pd.DataFrame(columns=years)
+
     for gdir in gdirs:
+        print(gdir.dir)
         df_list = {}
-        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')):
+        to_range = []
+        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')) and gdir.rgi_id.endswith('00739'):
             for yr in years:
+                print(yr)
                 # find_possible_glaciers(gdir,gdir.read_pickle('synthetic_experiment'),yr)
                 path = os.path.join(gdir.dir, 'result' + str(yr) + '.pkl')
 
@@ -122,11 +129,15 @@ if __name__ == '__main__':
                      'ratio(max)': df.volume.max() / v2000,
                      'objective(max)': max_obj, 'temp_bias': df.temp_bias.min()},
                     ignore_index=True)
+                r = df[df.objective<=100].volume.max()-df[df.objective<=100].volume.min()
+                to_range.append(r)
 
-                plot_dir=os.path.join(cfg.PATHS['plot_dir'],gdir.rgi_id)
+                plot_dir=os.path.join(cfg.PATHS['plot_dir'],'starting')
                 utils.mkdir(plot_dir,reset=False)
+            range.loc[gdir.rgi_id,:] = to_range
             plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
-            plt.show()
+            #plt.show()
 
         else:
             print(gdir.rgi_id,' has no experiment')
+    range.to_pickle(os.path.join(WORKING_DIR,'range.pkl'))
