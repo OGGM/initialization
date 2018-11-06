@@ -18,7 +18,7 @@ from matplotlib.legend_handler import HandlerLineCollection
 import matplotlib.cm as cm
 from matplotlib.path import Path
 import matplotlib.patches as patches
-from sklearn import preprocessing
+#from sklearn import preprocessing
 
 
 import os
