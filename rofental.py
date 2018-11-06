@@ -1,14 +1,16 @@
 from core import *
-from plots import *
+from plots_paper import *
 
 import os
 from copy import deepcopy
 from functools import partial
+import pickle
 
 import matplotlib.pyplot as plt
 import xarray as xr
 import geopandas as gpd
 import shapely.geometry as shpg
+from scipy.optimize import curve_fit
 
 import salem
 from oggm import cfg, workflow, tasks, utils, graphics
@@ -16,9 +18,12 @@ from oggm.utils import get_demo_file
 from oggm.core.flowline import FluxBasedModel, FileModel
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 
+
+
+
 if __name__ == '__main__':
     cfg.initialize()
-    ON_CLUSTER = False
+    ON_CLUSTER = True
 
     # Local paths
     if ON_CLUSTER:
@@ -31,6 +36,7 @@ if __name__ == '__main__':
         cfg.PATHS['working_dir'] = WORKING_DIR
 
     cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'], 'plots')
+    #cfg.PATHS['plot_dir'] = '/home/juliaeis/Dokumente/eigene_paper/reconstruction/plots'
     utils.mkdir(cfg.PATHS['plot_dir'], reset=False)
 
     # Use multiprocessing?
@@ -78,17 +84,26 @@ if __name__ == '__main__':
 
     # initialization
     gdirs = workflow.init_glacier_regions(rgidf,reset=False)
-    #prepare_for_initializing(gdirs)
-    #synthetic_experiments_parallel(gdirs)
+    prepare_for_initializing(gdirs)
+    synthetic_experiments_parallel(gdirs)
 
-    years = [1850,1875,1900,1925,1950]
+    #years = [1850,1875,1900,1925,1950]
+    #years = np.arange(1850, 1970,5)
+    years = [1850]
     volumes = pd.DataFrame()
+    median_df = pd.DataFrame()
+    #ranged = pd.DataFrame(columns=years)
+
     for gdir in gdirs:
         #plot_climate(gdir,cfg.PATHS['plot_dir'])
         df_list = {}
-        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')):
+        to_range = []
+        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')) and gdir.rgi_id.endswith('00779'):
+            #ex_mod = gdir.read_pickle('synthetic_experiment')['y_t']
+            print(gdir.rgi_id)
             for yr in years:
-                # find_possible_glaciers(gdir,gdir.read_pickle('synthetic_experiment'),yr)
+
+                find_possible_glaciers(gdir,gdir.read_pickle('synthetic_experiment'),yr)
                 path = os.path.join(gdir.dir, 'result' + str(yr) + '.pkl')
 
                 if os.path.isfile(path) and not pd.read_pickle(path).empty:
@@ -99,15 +114,23 @@ if __name__ == '__main__':
                         'synthetic_experiment'))
                     df.to_pickle(path)
 
+                rp = gdir.get_filepath('model_run', filesuffix='experiment')
+                ex_mod = FileModel(rp)
+
 
                 df['volume'] = df['model'].apply(lambda x: x.volume_m3)
                 df['temp_bias'] = df['temp_bias'].apply(lambda x: float(x))
 
                 df_list[str(yr)]=df
 
-                #plot_surface_col(gdir, df, ex_mod, yr, plot_dir)
-                #plot_surface_mean(gdir, df, ex_mod, yr,2000, plot_dir)
+                plot_experiment(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                plot_candidates(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                plot_col_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                #median_df = median_df.append({'rgi': gdir.rgi_id, 'm_mod':m_mod,'ex_p':rp, 'min_mod':df.loc[df['objective'].idxmin(),'model']}, ignore_index=True)
 
+                '''
 
                 max_model = deepcopy(df.loc[df.volume.idxmax(), 'model'])
 
@@ -116,6 +139,7 @@ if __name__ == '__main__':
                 rp = gdir.get_filepath('model_run', filesuffix='experiment')
                 ex_mod = FileModel(rp)
                 v1850 = deepcopy(ex_mod.volume_m3)
+                print(gdir.rgi_id,v1850)
                 ex_mod.run_until(2000)
                 v2000 = ex_mod.volume_m3
                 volumes = volumes.append(
@@ -123,11 +147,34 @@ if __name__ == '__main__':
                      'ratio(max)': df.volume.max() / v2000,
                      'objective(max)': max_obj, 'temp_bias': df.temp_bias.min()},
                     ignore_index=True)
+                r = df[df.objective<=100].volume.max()-df[df.objective<=100].volume.min()
+                to_range.append(r)
 
                 plot_dir=os.path.join(cfg.PATHS['plot_dir'],gdir.rgi_id)
                 utils.mkdir(plot_dir,reset=False)
-            plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
+            #range.loc[gdir.rgi_id,:] = to_range
+
+            #plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
             plt.show()
 
         else:
             print(gdir.rgi_id,' has no experiment')
+
+
+    #range.to_pickle(os.path.join(WORKING_DIR,'range.pkl'))
+
+    #plot_range(rgidf,os.path.join(WORKING_DIR,'range.pkl'),cfg.PATHS['plot_dir'],False)
+
+    #median_df.to_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
+
+
+    median_oe_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/oetztal/median.pkl')
+
+    median_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental/median.pkl')
+    #plot_median_vs_min([median_df,median_oe_df], cfg.PATHS['plot_dir'])
+    '''
+
+
+
+    #plt.show()
+    '''

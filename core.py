@@ -155,11 +155,21 @@ def _run_file_model(suffix, gdir, ye):
 
 def find_candidates(gdir, experiment, df, ys, ye, n):
     indices = []
+
+    # new version candidates --  equdistant
+    for val in np.linspace(df.ts_section.min(), df.ts_section.max(), n):
+        index = df.iloc[(df['ts_section'] - val).abs().argsort()][:1].index[0]
+        if not index in indices:
+            indices = np.append(indices, index)
+
+    '''
+    # old version --quantiles
     for q in np.linspace(0, 1, n):
         # indices of all to test
         greater_q = df['ts_section'] >= (df['ts_section'].quantile(q))
         index = df[greater_q]['ts_section'].idxmin()
         indices = np.append(indices, int(index))
+    '''
     candidates = df.ix[indices]
     candidates = candidates.sort_values(['suffix', 'time'])
     candidates['fls_t0'] = None
