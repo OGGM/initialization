@@ -89,11 +89,8 @@ if __name__ == '__main__':
     # initialization
     gdirs = workflow.init_glacier_regions(rgidf,reset=False)
     #prepare_for_initializing(gdirs)
-    #synthetic_experiments_parallel(gdirs)
-<<<<<<< HEAD
-=======
+    #synthetic_experiments_parallel(gdir)
 
->>>>>>> de4b8fd4de31b2eebbe3c128b34a5e273fbdb007
 
     #years = [1850,1875,1900,1925,1950]
     years = np.arange(1850, 1970,5)
