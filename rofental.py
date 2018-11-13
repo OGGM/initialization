@@ -133,7 +133,10 @@ if __name__ == '__main__':
                 #plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 plot_candidates(gdir, df, ex_mod, yr, 'step3',cfg.PATHS['plot_dir'])
                 plot_col_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-                #m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                try:
+                    m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                except:
+                    pass
                 #median_df = median_df.append({'rgi': gdir.rgi_id, 'm_mod':m_mod,'ex_p':rp, 'min_mod':df.loc[df['objective'].idxmin(),'model']}, ignore_index=True)
 
                 '''
