@@ -25,7 +25,7 @@ if __name__ == '__main__':
     cfg.initialize()
 
     ON_CLUSTER_NEW = False
-    ON_CLUSTER_OLD = False
+    ON_CLUSTER_OLD = True
 
     # Local paths
     if ON_CLUSTER_NEW:
@@ -133,7 +133,7 @@ if __name__ == '__main__':
                 #plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 plot_candidates(gdir, df, ex_mod, yr, 'step3',cfg.PATHS['plot_dir'])
                 plot_col_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-                m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                #m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 #median_df = median_df.append({'rgi': gdir.rgi_id, 'm_mod':m_mod,'ex_p':rp, 'min_mod':df.loc[df['objective'].idxmin(),'model']}, ignore_index=True)
 
                 '''
@@ -156,8 +156,8 @@ if __name__ == '__main__':
                 r = df[df.objective<=100].volume.max()-df[df.objective<=100].volume.min()
                 to_range.append(r)
                 '''
-            plot_dir=os.path.join(cfg.PATHS['plot_dir'],'starting')
-            utils.mkdir(plot_dir,reset=False)
+            #plot_dir=os.path.join(cfg.PATHS['plot_dir'],'starting')
+            #utils.mkdir(plot_dir,reset=False)
                 
             #range.loc[gdir.rgi_id,:] = to_range
 
