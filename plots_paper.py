@@ -183,7 +183,7 @@ def plot_compare_fitness(gdir,df,ex_mod,ys, plot_dir):
             color = cmap(norm(df.loc[i, 'objective']))
         else:
             color = cmap(df.loc[i, 'objective'])
-        model.volume_m3_ts().plot(ax=ax1, color=color,
+        model.volume_m3_ts().plot(ax=ax1, color=[color],
                                   linewidth=3,
                                   label=r'$s_{1850-2000}^{exp}$')
     df = df.sort_values('objective2', ascending=False)
@@ -193,7 +193,7 @@ def plot_compare_fitness(gdir,df,ex_mod,ys, plot_dir):
         else:
             color = cmap(df.loc[i, 'objective2'])
 
-        model.volume_m3_ts().plot(ax=ax2, color=color,
+        model.volume_m3_ts().plot(ax=ax2, color=[color],
                                    linewidth=3,
                                    label=r'$s_{1850-2000}^{exp}$')
     df = df.sort_values('objective3', ascending=False)
@@ -202,7 +202,7 @@ def plot_compare_fitness(gdir,df,ex_mod,ys, plot_dir):
             color = cmap(norm3(int(df.loc[i, 'objective3'])))
         else:
             color = cmap(df.loc[i, 'objective3'])
-        model.volume_m3_ts().plot(ax=ax3, color=color,
+        model.volume_m3_ts().plot(ax=ax3, color=[color],
                                    linewidth=3,
                                    label=r'$s_{1850-2000}^{exp}$')
         #ax3.plot(x, deepcopy(model.fls[-1].surface_h), color=color,
@@ -339,9 +339,9 @@ def plot_fitness_over_time2(gdir, df_list, ex_mod, plot_dir):
     cbar = fig.colorbar(sm, cax=cax, **kw)
     cbar.ax.tick_params(labelsize=25)
     cbar.set_label('Fitness value', fontsize=25)
-    # plt.savefig(os.path.join(plot_dir, 'starting' '_' + gdir.rgi_id + '.png'))
-
-    plt.show()
+    plt.savefig(os.path.join(plot_dir, 'starting' '_' + gdir.rgi_id + '.png'))
+    plt.close()
+    #plt.show()
 
 
 def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
@@ -371,7 +371,7 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
         color = cmap(norm(df.loc[i, 'objective']))
         ax1.plot(x, deepcopy(model.fls[-1].surface_h), color=color,
                  label='')
-        model.volume_m3_ts().plot(ax=ax3, color=color, label='')
+        model.volume_m3_ts().plot(ax=ax3, color=[color], label='')
 
         model.run_until(2000)
 
@@ -461,6 +461,7 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
 
 def plot_median(gdir,df,ex_mod,ys, plot_dir):
     plot_dir = os.path.join(plot_dir,'04_median')
+    utils.mkdir(plot_dir)
     x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * ex_mod.fls[
         -1].map_dx
     fig = plt.figure(figsize=(25, 18))
