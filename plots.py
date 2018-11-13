@@ -309,3 +309,42 @@ def plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir):
     #plt.close()
 
 
+def z_curve(x, a, b, c):
+    z = a - (0 + ((a) / (1 + exp((b - (x)) / c))))
+    return z
+
+
+def plot_range(rgidf, path, plot_dir, relative=False,):
+
+    ranged = pd.read_pickle(path)
+
+    fig = plt.figure(figsize=(20, 10))
+    ax = fig.add_subplot(111, yscale='linear')
+
+    ranged = ranged.join(rgidf.set_index('RGIId')['Slope'])
+    print(ranged)
+    norm = mpl.colors.Normalize(vmin=ranged['Slope'].min(), vmax=ranged['Slope'].max())
+    cmap = matplotlib.cm.get_cmap('viridis')
+    for i in range(1, len(ranged)):
+        y = ranged.iloc[i].values[:-1]
+        y = y.astype(float)
+
+        x = np.arange(1850, 1970, 5)
+        x = x[~np.isnan(y)]
+        y = y[~np.isnan(y)]
+        popt, pcov = curve_fit(z_curve, x, y, p0=[y[0], 1890, 1])
+        c = cmap(norm(ranged.iloc[i].values[-1]))
+        if relative:
+            p = plt.plot(x,z_curve(x,*popt)/z_curve(x,*popt)[0],color=c)
+            plt.plot(x, y / y[0], 'o', color=c)
+        else:
+            p = plt.plot(x, z_curve(x, *popt),color=c)
+            plt.plot(x, y, 'o', color=c)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cax, kw = mpl.colorbar.make_axes([ax])
+    cbar = fig.colorbar(sm, cax=cax, **kw)
+    cbar.ax.tick_params(labelsize=25)
+    cbar.set_label('Slope', fontsize=25)
+
+

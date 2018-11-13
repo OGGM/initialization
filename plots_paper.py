@@ -30,7 +30,7 @@ mpl.rcParams['ytick.major.width'] = 3
 mpl.rcParams['font.size'] = 30
 mpl.rcParams['font.weight'] = 'medium'
 mpl.rcParams['axes.labelweight'] = 'medium'
-mpl.rcParams['legend.fontsize']=30 #25
+mpl.rcParams['legend.fontsize']= 25 #30
 mpl.rcParams['lines.linewidth']=3
 
 def add_at(ax, t, loc=2):
@@ -108,11 +108,11 @@ def plot_experiment(gdir,df,ex_mod,ys, plot_dir):
     plt.savefig(os.path.join(plot_dir,'experiment_'+gdir.rgi_id+'.pdf'), dpi=300)
     plt.close()
 
-def plot_candidates(gdir, df, ex_mod, yr, plot_dir):
+def plot_candidates(gdir, df, ex_mod, yr, step,plot_dir):
     plot_dir = os.path.join(plot_dir,'06_candidates')
     utils.mkdir(plot_dir)
     all = pd.DataFrame()
-    fig, ax = plt.subplots(figsize=(15,14))
+    fig, ax = plt.subplots(figsize=(10,10))
     for file in os.listdir(gdir.dir):
         if file.startswith('model_run'+str(yr)+'_random'):
             suffix = file.split('model_run')[1].split('.nc')[0]
@@ -127,16 +127,40 @@ def plot_candidates(gdir, df, ex_mod, yr, plot_dir):
     # last one again for labeling
     label = r'temperature bias $\in [$' + str(
         df['temp_bias'].min()) + ',' + str(df['temp_bias'].max()) + '$]$'
-    fmod.volume_m3_ts().plot(ax=ax, color='grey', label=label, zorder=1)
-    t_eq = df['time'].sort_values().iloc[0]
-    ax.axvline(x=int(t_eq), color='k', zorder=1)
 
+    t_eq = df['time'].sort_values().iloc[0]
+
+    df['Fitness value'] = df.objective
     df.time = df.time.apply(lambda x: int(x))
-    df.plot.scatter(x='time', y='volume', ax=ax, c='objective', colormap='viridis', norm=mpl.colors.LogNorm(vmin=0.1, vmax=1e5), s=100,edgecolors='k', zorder=2)
-    plt.ylabel(r'Volume $(m^3)$')
+
     plt.title(gdir.rgi_id)
-    plt.legend()
-    plt.savefig(os.path.join(plot_dir, 'random' + str(yr) + '_' + str(gdir.rgi_id) + '.png'), dpi=300)
+
+    if step == 'step1':
+        fmod.volume_m3_ts().plot(ax=ax, color='grey', label=label, zorder=1)
+        plt.legend(loc=0, fontsize=23)
+        plt.xlabel('Time (years)')
+        plt.ylabel(r'Volume $(m^3)$')
+        plt.savefig(os.path.join(plot_dir, 'candidates1_' + str(yr) + '_' + str(
+                gdir.rgi_id) + '.png'), dpi=300)
+    elif step == 'step2':
+        ax.axvline(x=int(t_eq), color='k', zorder=1, label=r'$t_{stag}$')
+        fmod.volume_m3_ts().plot(ax=ax, color='grey', label='', zorder=1)
+        # black points
+        df.plot.scatter(x='time', y='volume', ax=ax, color='k', label='candidates', s=250, zorder=2)
+        plt.legend(loc=0, fontsize=23)
+        plt.xlabel('Time (years)')
+        plt.ylabel(r'Volume $(m^3)$')
+        plt.savefig(os.path.join(plot_dir, 'candidates2_' + str(yr) + '_' + str(
+            gdir.rgi_id) + '.png'), dpi=300)
+    elif step == 'step3':
+        fmod.volume_m3_ts().plot(ax=ax, color='grey', label=None, zorder=1)
+        ax.axvline(x=int(t_eq), color='k', zorder=1)
+        # colored points
+        df.plot.scatter(x='time', y='volume', ax=ax, c='Fitness value', colormap='viridis', norm=mpl.colors.LogNorm(vmin=0.1, vmax=1e5), s=250,edgecolors='k', zorder=2)
+        plt.xlabel('Time (years)')
+        plt.ylabel(r'Volume $(m^3)$')
+        plt.savefig(os.path.join(plot_dir, 'candidates3_' + str(yr) + '_' + str(gdir.rgi_id) + '.png'), dpi=300)
+    plt.show()
     plt.close()
 
     plt.figure(figsize=(15,14))
@@ -170,8 +194,8 @@ def plot_compare_fitness(gdir,df,ex_mod,ys, plot_dir):
     else:
         ax1.set_title(gdir.rgi_id, fontsize=30)
 
-    df['objective2'] = df.model.apply(lambda x: abs(x.area_m2_ts()[2000] - ex_mod.area_m2_ts()[2000]))
-    df['objective3'] = df.model.apply(lambda x: abs(x.length_m_ts()[2000] - ex_mod.length_m_ts()[2000]))
+    df['objective2'] = df.model.apply(lambda x: abs(x.area_m2_ts()[2000] - ex_mod.area_m2_ts()[2000])**2)
+    df['objective3'] = df.model.apply(lambda x: abs(x.length_m_ts()[2000] - ex_mod.length_m_ts()[2000])**2)
     norm = mpl.colors.LogNorm(vmin=df.objective.min(), vmax=df.objective.max(),clip=True)
     norm2 = mpl.colors.LogNorm(vmin=df.objective2.min()+1,vmax=df.objective2.max(),clip=True)
     norm3 = mpl.colors.LogNorm(vmin=df.objective3.min() + 1, vmax=df.objective3.max(), clip=True)
@@ -257,8 +281,8 @@ def plot_compare_fitness(gdir,df,ex_mod,ys, plot_dir):
     ax2.tick_params(axis='both', which='major', labelsize=30)
     #ax3.tick_params(axis='both', which='major', labelsize=30)
     #ax3.yaxis.offsetText.set_fontsize(30)
-
-    plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.pdf'), dpi=300)
+    plt.show()
+    #plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.pdf'), dpi=300)
     '''
     df['diff'] = df.objective.apply(lambda x: norm(x)) - df.objective2.apply(
         lambda x: norm2(x))
@@ -369,10 +393,10 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
         model = deepcopy(model)
         model.reset_y0(ys)
         color = cmap(norm(df.loc[i, 'objective']))
+
         ax1.plot(x, deepcopy(model.fls[-1].surface_h), color=color,
                  label='')
-        model.volume_m3_ts().plot(ax=ax3, color=color, label='')
-
+        model.volume_m3_ts().plot(ax=ax3, color=[color], label='')
         model.run_until(2000)
 
         ax2.plot(x, model.fls[-1].surface_h, color=color,label='')
@@ -455,12 +479,131 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
 
 
     ax3.set_xlim(xmin=1847, xmax=2003)
-    plt.savefig(os.path.join(plot_dir,'surface_'+gdir.rgi_id+'.pdf'), dpi=300)
+    #plt.savefig(os.path.join(plot_dir,'surface_'+gdir.rgi_id+'.pdf'), dpi=300)
+    plt.show()
     plt.close()
 
 
+def plot_col_fitness2(gdir,df,ex_mod,ys, plot_dir):
+
+    plot_dir = os.path.join(plot_dir,'03_surface_by_fitness')
+    utils.mkdir(plot_dir)
+    x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * ex_mod.fls[-1].map_dx
+    fig = plt.figure(figsize=(25,18))
+    grid = plt.GridSpec(2, 2, hspace=0.2, wspace=0.2)
+    ax1 = plt.subplot(grid[0, 0])
+    ax2 = plt.subplot(grid[0, 1],sharey=ax1)
+    ax3 = plt.subplot(grid[1, :])
+
+    ax1.set_title('t=1850',fontsize=30)
+    ax2.set_title('t=2000', fontsize=30)
+
+    if gdir.name != '':
+        plt.suptitle(gdir.rgi_id+': '+gdir.name,fontsize=30)
+    else:
+        plt.suptitle(gdir.rgi_id+': Guslarferner', fontsize=30)
+
+    norm = mpl.colors.LogNorm(vmin=0.1, vmax=1e5)
+    cmap = matplotlib.cm.get_cmap('viridis')
+
+    df = df.sort_values('objective', ascending=False)
+
+    for i, model in df['model'].iteritems():
+        model = deepcopy(model)
+        model.reset_y0(ys)
+        color = cmap(norm(df.loc[i, 'objective']))
+
+        ax1.plot(x, deepcopy(model.fls[-1].surface_h), color=color,
+                 label='')
+        model.volume_m3_ts().plot(ax=ax3, color=[color], label='')
+        model.run_until(2000)
+
+        ax2.plot(x, model.fls[-1].surface_h, color=color,label='')
+
+    # plot experiments
+    ex_mod = deepcopy(ex_mod)
+    ex_mod.volume_m3_ts().plot(ax=ax3, color='gold', linestyle=':', linewidth=3, label='')
+    ex_mod.reset_y0(1850)
+    ex_mod.run_until(ys)
+
+    ax1.plot(x, ex_mod.fls[-1].surface_h, ':', color='gold',label='',linewidth=3)
+    ax1.plot(x, ex_mod.fls[-1].bed_h, 'k',label='', linewidth=3)
+
+    ex_mod.run_until(2000)
+
+    ax2.plot(x, ex_mod.fls[-1].surface_h, ':', color='gold',label='', linewidth=3)
+    ax2.plot(x, ex_mod.fls[-1].bed_h, 'k', label='',linewidth=3)
+
+    # add colorbar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cax, kw = mpl.colorbar.make_axes([ax1, ax2, ax3])
+    cbar = fig.colorbar(sm, cax=cax ,**kw)
+    cbar.ax.tick_params(labelsize=30)
+    cbar.set_label('Fitness value', fontsize=30)
+
+    # add figure names and x-/ylabels
+    add_at(ax1, r"a", loc=3)
+    add_at(ax2, r"b", loc=3)
+    add_at(ax3, r"c", loc=3)
+
+    ax1.set_ylabel('Altitude (m)', fontsize=30)
+    ax1.set_xlabel('Distance along the main flowline (m)', fontsize=30)
+    ax2.set_ylabel('Altitude (m)',fontsize=30)
+    ax2.set_xlabel('Distance along the main flowline (m)',fontsize=30)
+    ax3.set_ylabel(r'Volume ($m^3$)', fontsize=30)
+    ax3.set_xlabel('Time (years)', fontsize=30)
+
+    ax1.tick_params(axis='both', which='major', labelsize=30)
+    ax2.tick_params(axis='both', which='major', labelsize=30)
+    ax3.tick_params(axis='both', which='major', labelsize=30)
+    ax3.yaxis.offsetText.set_fontsize(30)
+
+    # add legend
+    # legend
+
+
+    t = np.linspace(0, 10, 200)
+    x = np.cos(np.pi * t)
+    y = np.sin(t)
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    lc = LineCollection(segments, cmap=cmap,
+                        norm=plt.Normalize(0, 10), linewidth=3)
+    lc2 = LineCollection(segments, color='k',
+                         norm=plt.Normalize(0, 10), linewidth=3)
+    lc3 = LineCollection(segments, color='gold', linestyle=':',
+                         norm=plt.Normalize(0, 10), linewidth=3)
+
+    l1 = ax1.legend(handles=[lc3, lc, lc2], handler_map={
+        lc: HandlerColorLineCollection(numpoints=100)},
+                    labels=['true solution', 'reconstructed ice surface',
+                            'bed topography'], loc=1,fontsize=22)
+
+    l2 = ax2.legend(handles=[lc3, lc, lc2],
+                    handler_map={
+                        lc: HandlerColorLineCollection(numpoints=100)},
+                    labels=['true solution', 'reconstructed ice surface',
+                            'bed topography'], loc=1, fontsize=22)
+
+    l3 = ax3.legend(handles=[lc3],
+                    handler_map={
+                        lc: HandlerColorLineCollection(numpoints=100)},
+                    labels=['true solution'], loc=1, fontsize=22)
+    #ax3.legend(handles=[lc3], labels=['true solution'], loc=0)
+
+    l1.set_zorder(0)
+    l2.set_zorder(0)
+    l3.set_zorder(0)
+
+
+    ax3.set_xlim(xmin=1847, xmax=2003)
+    plt.savefig(os.path.join(plot_dir,'01_Kesselwandferner.pdf'), dpi=300)
+    plt.show()
+
 def plot_median(gdir,df,ex_mod,ys, plot_dir):
     plot_dir = os.path.join(plot_dir,'04_median')
+    utils.mkdir(plot_dir)
     x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * ex_mod.fls[
         -1].map_dx
     fig = plt.figure(figsize=(25, 18))
