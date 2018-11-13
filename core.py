@@ -41,7 +41,7 @@ def _run_parallel_experiment(gdir):
             # construct searched glacier
             random_climate1 = RandomMassBalance(gdir, y0=1850, bias=0,
                                                 seed=[1])
-            random_climate1.temp_bias = -0.75
+            random_climate1.temp_bias = -1
             model = FluxBasedModel(fls, mb_model=random_climate1, glen_a=cfg.A,
                                    y0=0)
             model.run_until(400)

@@ -23,17 +23,21 @@ FlowlineModel = partial(FluxBasedModel, inplace=False)
 
 if __name__ == '__main__':
     cfg.initialize()
-    ON_CLUSTER = False
+
+    ON_CLUSTER_NEW = False
+    ON_CLUSTER_OLD = True
 
     # Local paths
-    if ON_CLUSTER:
-        cfg.PATHS['working_dir'] = os.environ.get("S_WORKDIR")
+    if ON_CLUSTER_NEW:
+        WORKING_DIR = os.environ.get("S_WORKDIR")
+    elif ON_CLUSTER_OLD:
+        WORKING_DIR = 'out/rofental2'
     else:
         WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental2'
         #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction'
         #WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/find_initial_state/past_state_information'
         utils.mkdir(WORKING_DIR, reset=False)
-        cfg.PATHS['working_dir'] = WORKING_DIR
+    cfg.PATHS['working_dir'] = WORKING_DIR
 
     cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'], 'plots')
     #cfg.PATHS['plot_dir'] = '/home/juliaeis/Dokumente/eigene_paper/reconstruction/plots'
@@ -86,19 +90,25 @@ if __name__ == '__main__':
     gdirs = workflow.init_glacier_regions(rgidf,reset=False)
     #prepare_for_initializing(gdirs)
     #synthetic_experiments_parallel(gdirs)
+<<<<<<< HEAD
+=======
+
+>>>>>>> de4b8fd4de31b2eebbe3c128b34a5e273fbdb007
 
     #years = [1850,1875,1900,1925,1950]
-    #years = np.arange(1850, 1970,5)
-    years = [1850]
+    years = np.arange(1850, 1970,5)
+    #years = [1850]
     volumes = pd.DataFrame()
     median_df = pd.DataFrame()
     #ranged = pd.DataFrame(columns=years)
 
     for gdir in gdirs:
-        #plot_climate(gdir,cfg.PATHS['plot_dir'])
+        print(gdir.dir)
         df_list = {}
         to_range = []
+
         if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')) and gdir.rgi_id.endswith('00787'):
+
             #ex_mod = gdir.read_pickle('synthetic_experiment')['y_t']
             print(gdir.rgi_id)
             for yr in years:
@@ -126,7 +136,7 @@ if __name__ == '__main__':
                 #plot_experiment(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 #plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 #plot_candidates(gdir, df, ex_mod, yr, 'step3',cfg.PATHS['plot_dir'])
-                plot_col_fitness2(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                #plot_col_fitness2(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 #m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 #median_df = median_df.append({'rgi': gdir.rgi_id, 'm_mod':m_mod,'ex_p':rp, 'min_mod':df.loc[df['objective'].idxmin(),'model']}, ignore_index=True)
 
@@ -149,13 +159,14 @@ if __name__ == '__main__':
                     ignore_index=True)
                 r = df[df.objective<=100].volume.max()-df[df.objective<=100].volume.min()
                 to_range.append(r)
-
-                plot_dir=os.path.join(cfg.PATHS['plot_dir'],gdir.rgi_id)
-                utils.mkdir(plot_dir,reset=False)
+                '''
+            plot_dir=os.path.join(cfg.PATHS['plot_dir'],'starting')
+            utils.mkdir(plot_dir,reset=False)
+                
             #range.loc[gdir.rgi_id,:] = to_range
 
-            #plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
-            plt.show()
+            plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
+            #plt.show()
 
         else:
             print(gdir.rgi_id,' has no experiment')
@@ -168,8 +179,7 @@ if __name__ == '__main__':
     #median_df.to_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
 
 
-    median_oe_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/oetztal/median.pkl')
+    #median_oe_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/oetztal/median.pkl')
 
-    median_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental/median.pkl')
+    #median_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental/median.pkl')
     #plot_median_vs_min([median_df,median_oe_df], cfg.PATHS['plot_dir'])
-    '''
