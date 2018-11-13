@@ -63,7 +63,6 @@ def plot_experiment(gdir,df,ex_mod,ys, plot_dir):
     grid = plt.GridSpec(2, 1, hspace=0.2, wspace=0.2)
     ax1 = plt.subplot(grid[0, 0])
     ax2 = plt.subplot(grid[1,0],sharex=ax1)
-    #ax3 = plt.subplot(grid[1, :])
 
     if gdir.name != '':
         ax1.set_title(gdir.rgi_id+':'+gdir.name,fontsize=30)
@@ -72,46 +71,40 @@ def plot_experiment(gdir,df,ex_mod,ys, plot_dir):
 
     # plot experiments
     ex_mod = deepcopy(ex_mod)
-    #ex_mod.volume_m3_ts().plot(ax=ax3, color='k', linestyle=':', linewidth=3, label=r'$s_{1850-2000}^{exp}$')
     ex_mod.reset_y0(1850)
     ex_mod.run_until(ys)
+    i = np.where(ex_mod.fls[-1].thick > 0)[0][-1] +10
 
-    ax1.plot(x[:100], ex_mod.fls[-1].surface_h[:100], 'k:',label=r'$x_{1850}^{exp}$',linewidth=3)
-    ax1.plot(x[:100], ex_mod.fls[-1].bed_h[:100], 'k',label=r'$b$', linewidth=3)
+    ax1.plot(x[:i], ex_mod.fls[-1].surface_h[:i], 'k:',label=r'$x_{'+str(ys)+'}^{exp}$',linewidth=3)
+    ax1.plot(x[:i], ex_mod.fls[-1].bed_h[:i], 'k',label=r'$b$', linewidth=3)
 
     ex_mod.run_until(2000)
 
-    ax2.plot(x[:100], ex_mod.fls[-1].surface_h[:100], 'k:',label=r'$x_{2000}^{exp = obs} $', linewidth=3)
-    ax2.plot(x[:100], ex_mod.fls[-1].bed_h[:100], 'k', label=r'$b$',linewidth=3)
+    ax2.plot(x[:i], ex_mod.fls[-1].surface_h[:i], 'k:',label=r'$x_{2000}^{exp = obs} $', linewidth=3)
+    ax2.plot(x[:i], ex_mod.fls[-1].bed_h[:i], 'k', label=r'$b$',linewidth=3)
 
     # add figure names and legends
     add_at(ax1, r"a", loc=3)
     add_at(ax2, r"b", loc=3)
-    #add_at(ax3, r"c", loc=3)
 
     ax1.legend(loc=1)
     ax2.legend(loc=1)
-    #ax3.legend(loc=1)
 
     ax1.set_ylabel('Altitude (m)', fontsize=30)
     ax1.set_xlabel('Distance along the main flowline (m)', fontsize=30)
     ax2.set_ylabel('Altitude (m)',fontsize=30)
     ax2.set_xlabel('Distance along the main flowline (m)',fontsize=30)
-    #ax3.set_ylabel(r'Volume ($m^3$)', fontsize=30)
-    #ax3.set_xlabel('Time (years)', fontsize=30)
 
     ax1.tick_params(axis='both', which='major', labelsize=30)
     ax2.tick_params(axis='both', which='major', labelsize=30)
-    #ax3.tick_params(axis='both', which='major', labelsize=30)
-    #ax3.yaxis.offsetText.set_fontsize(30)
 
-    plt.savefig(os.path.join(plot_dir,'experiment_'+gdir.rgi_id+'.pdf'), dpi=300)
+    plt.savefig(os.path.join(plot_dir,'experiment_'+str(ys)+'_'+gdir.rgi_id+'.pdf'), dpi=300)
+    plt.savefig(os.path.join(plot_dir, 'experiment_' + str(ys) + '_' + gdir.rgi_id + '.png'), dpi=300)
     plt.close()
 
 def plot_candidates(gdir, df, ex_mod, yr, step,plot_dir):
     plot_dir = os.path.join(plot_dir,'06_candidates')
     utils.mkdir(plot_dir)
-    all = pd.DataFrame()
     fig, ax = plt.subplots(figsize=(10,10))
     for file in os.listdir(gdir.dir):
         if file.startswith('model_run'+str(yr)+'_random'):
@@ -160,7 +153,7 @@ def plot_candidates(gdir, df, ex_mod, yr, step,plot_dir):
         plt.xlabel('Time (years)')
         plt.ylabel(r'Volume $(m^3)$')
         plt.savefig(os.path.join(plot_dir, 'candidates3_' + str(yr) + '_' + str(gdir.rgi_id) + '.png'), dpi=300)
-    plt.show()
+
     plt.close()
 
     plt.figure(figsize=(15,14))
@@ -443,7 +436,6 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
     # add legend
     # legend
 
-
     t = np.linspace(0, 10, 200)
     x = np.cos(np.pi * t)
     y = np.sin(t)
@@ -458,7 +450,7 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
 
     l1 = ax1.legend(handles=[lc3, lc, lc2], handler_map={
         lc: HandlerColorLineCollection(numpoints=100)},
-                    labels=[r'$x_{1850}^{exp}$', r'$x_{1850}$',
+                    labels=[r'$x_{'+str(ys)+'}^{exp}$', r'$x_{'+str(ys)+'}$',
                             r'$b$'], loc=1)
 
     l2 = ax2.legend(handles=[lc3, lc, lc2],
@@ -470,8 +462,7 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
     l3 = ax3.legend(handles=[lc3, lc],
                     handler_map={
                         lc: HandlerColorLineCollection(numpoints=100)},
-                    labels=[r'$s_{1850-2000}^{exp}$', r'$s_{1850-2000}$'], loc=1)
-    #ax3.legend(handles=[lc3], labels=['true solution'], loc=0)
+                    labels=[r'$s_{'+str(ys)+'-2000}^{exp}$', r'$s_{'+str(ys)+'-2000}$'], loc=1)
 
     l1.set_zorder(0)
     l2.set_zorder(0)
@@ -479,8 +470,8 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
 
 
     ax3.set_xlim(xmin=1847, xmax=2003)
-    #plt.savefig(os.path.join(plot_dir,'surface_'+gdir.rgi_id+'.pdf'), dpi=300)
-    plt.show()
+    plt.savefig(os.path.join(plot_dir,'surface_'+str(ys)+'_'+gdir.rgi_id+'.pdf'), dpi=300)
+    plt.savefig(os.path.join(plot_dir, 'surface_' + str(ys) + '_' + gdir.rgi_id + '.png'), dpi=300)
     plt.close()
 
 
@@ -494,9 +485,6 @@ def plot_col_fitness2(gdir,df,ex_mod,ys, plot_dir):
     ax1 = plt.subplot(grid[0, 0])
     ax2 = plt.subplot(grid[0, 1],sharey=ax1)
     ax3 = plt.subplot(grid[1, :])
-
-    ax1.set_title('t=1850',fontsize=30)
-    ax2.set_title('t=2000', fontsize=30)
 
     if gdir.name != '':
         plt.suptitle(gdir.rgi_id+': '+gdir.name,fontsize=30)
@@ -597,7 +585,7 @@ def plot_col_fitness2(gdir,df,ex_mod,ys, plot_dir):
     l3.set_zorder(0)
 
 
-    ax3.set_xlim(xmin=1847, xmax=2003)
+    ax3.set_xlim(xmin=ys-3, xmax=2003)
     plt.savefig(os.path.join(plot_dir,'01_Kesselwandferner.pdf'), dpi=300)
     plt.show()
 
@@ -629,11 +617,11 @@ def plot_median(gdir,df,ex_mod,ys, plot_dir):
     max_model.reset_y0(ys)
     ax1.fill_between(x, deepcopy(min_model.fls[-1].surface_h),
                      deepcopy(max_model.fls[-1].surface_h),alpha=0.3,
-                     color='grey',label=r'$\mathcal{S}_{1850}^{100}$')
+                     color='grey',label=r'$\mathcal{S}_{'+str(ys)+'}^{100}$')
 
     ax3.fill_between(min_model.volume_m3_ts().index,min_model.volume_m3_ts(),
                      max_model.volume_m3_ts(),alpha=0.3, color='grey',
-                     label=r'$\mathcal{S}_{1850-2000}^{100}$')
+                     label=r'$\mathcal{S}_{'+str(ys)+'-2000}^{100}$')
     min_model.run_until(2000)
     max_model.run_until(2000)
     ax2.fill_between(x, deepcopy(min_model.fls[-1].surface_h),
@@ -654,11 +642,11 @@ def plot_median(gdir,df,ex_mod,ys, plot_dir):
     q_max_model.reset_y0(ys)
     ax1.fill_between(x, deepcopy(q_min_model.fls[-1].surface_h),
                      deepcopy(q_max_model.fls[-1].surface_h), alpha=0.5,
-                     label=r'$Q_{0.05}(\mathcal{S}_{1850}^{100})$')
+                     label=r'$Q_{0.05}(\mathcal{S}_{'+str(ys)+'}^{100})$')
 
     ax3.fill_between(q_min_model.volume_m3_ts().index, q_min_model.volume_m3_ts(),
                      q_max_model.volume_m3_ts(), alpha=0.5,linewidth=3,
-                     label=r'$Q_{0.05}(\mathcal{S}_{1850-2000}^{100})$')
+                     label=r'$Q_{0.05}(\mathcal{S}_{'+str(ys)+'-2000}^{100})$')
     q_min_model.run_until(2000)
     q_max_model.run_until(2000)
     ax2.fill_between(x, deepcopy(q_min_model.fls[-1].surface_h),
@@ -730,8 +718,8 @@ def plot_median(gdir,df,ex_mod,ys, plot_dir):
     l3 = ax3.legend(loc=1, fontsize=30)
     l3.set_zorder(1)
 
-    plt.savefig(os.path.join(plot_dir,'median_'+gdir.rgi_id+'.pdf'), dpi=300)
-    plt.savefig(os.path.join(plot_dir, 'median_' + gdir.rgi_id + '.png'), dpi=300)
+    plt.savefig(os.path.join(plot_dir,'median_'+str(ys)+'_'+gdir.rgi_id+'.pdf'), dpi=300)
+    plt.savefig(os.path.join(plot_dir, 'median_' + str(ys)+'_'+gdir.rgi_id + '.png'), dpi=300)
     plt.close()
     return median_model
 

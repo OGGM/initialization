@@ -25,7 +25,7 @@ if __name__ == '__main__':
     cfg.initialize()
 
     ON_CLUSTER_NEW = False
-    ON_CLUSTER_OLD = True
+    ON_CLUSTER_OLD = False
 
     # Local paths
     if ON_CLUSTER_NEW:
@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
 
     #years = [1850,1875,1900,1925,1950]
-    years = np.arange(1850, 1970,5)
+    years = np.arange(1850, 1970,10)
     #years = [1850]
     volumes = pd.DataFrame()
     median_df = pd.DataFrame()
@@ -104,9 +104,8 @@ if __name__ == '__main__':
         df_list = {}
         to_range = []
 
-        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')) and gdir.rgi_id.endswith('00787'):
+        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')):
 
-            #ex_mod = gdir.read_pickle('synthetic_experiment')['y_t']
             print(gdir.rgi_id)
             for yr in years:
 
@@ -132,9 +131,9 @@ if __name__ == '__main__':
 
                 #plot_experiment(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 #plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-                #plot_candidates(gdir, df, ex_mod, yr, 'step3',cfg.PATHS['plot_dir'])
-                #plot_col_fitness2(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-                #m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                plot_candidates(gdir, df, ex_mod, yr, 'step3',cfg.PATHS['plot_dir'])
+                plot_col_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 #median_df = median_df.append({'rgi': gdir.rgi_id, 'm_mod':m_mod,'ex_p':rp, 'min_mod':df.loc[df['objective'].idxmin(),'model']}, ignore_index=True)
 
                 '''
@@ -162,7 +161,7 @@ if __name__ == '__main__':
                 
             #range.loc[gdir.rgi_id,:] = to_range
 
-            plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
+            #plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
             #plt.show()
 
         else:
