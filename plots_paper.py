@@ -19,7 +19,7 @@ import matplotlib.cm as cm
 from matplotlib.path import Path
 import matplotlib.patches as patches
 #from sklearn import preprocessing
-
+pd.options.mode.chained_assignment = None
 
 import os
 
@@ -753,6 +753,35 @@ def plot_median_vs_min(list,plot_dir):
                medianprops=medianprops,whiskerprops=whiskerprops,
                capprops=capprops,flierprops=flierprops,widths=0.5,
                patch_artist=True, labels=['median','minimum'])
+    for i in range(len(box['boxes'])):
+        box['boxes'][i].set_alpha(0.3)
+        patch = patches.PathPatch(box['boxes'][i].get_path(), fill=False,edgecolor='black', lw=2)
+        ax.add_patch(patch)
+    ax.set_axisbelow(True)
+    plt.ylabel(r'Differences in volume ($km^3$)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(plot_dir, 'boxplot.pdf'), dpi=300)
+    plt.show()
+
+
+def plot_median_over_time(list,plot_dir):
+
+    median = pd.concat(list,ignore_index=True)
+
+    fig, ax = plt.subplots(figsize=(15,10))
+    boxprops = {'color': 'black', 'linewidth':3}
+    medianprops = {'color': 'C0', 'linewidth': 3}
+    whiskerprops = {'linewidth':3}
+    capprops = {'linewidth': 3}
+    flierprops = {'color': 'black','marker':'.', 'markerfacecolor':'black',
+                  'markersize':10}
+
+    ax.yaxis.grid(True, linestyle='-', which='major', color='lightgrey',
+                  alpha=0.7, lw=2)
+    box = ax.boxplot(median.values,boxprops=boxprops,
+               medianprops=medianprops,whiskerprops=whiskerprops,
+               capprops=capprops,flierprops=flierprops,widths=0.5,
+               patch_artist=True,labels=[1850,'','','','',1875,'','','','',1900,'','','','',1925,'','','','',1950,'','',''])
     for i in range(len(box['boxes'])):
         box['boxes'][i].set_alpha(0.3)
         patch = patches.PathPatch(box['boxes'][i].get_path(), fill=False,edgecolor='black', lw=2)
