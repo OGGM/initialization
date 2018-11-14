@@ -98,7 +98,7 @@ if __name__ == '__main__':
     volumes = pd.DataFrame()
     median_df = pd.DataFrame()
     #ranged = pd.DataFrame(columns=years)
-
+    median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
     for gdir in gdirs:
         df_list = {}
         to_range = []
@@ -122,6 +122,8 @@ if __name__ == '__main__':
 
                 rp = gdir.get_filepath('model_run', filesuffix='experiment')
                 ex_mod = FileModel(rp)
+                #median_df.loc[gdir.rgi_id, yr] = ex_mod.volume_km3_ts()[yr]
+                #volumes_df = volumes.append(ex_mod.volume_km3_ts()[yr])
 
 
                 df['volume'] = df['model'].apply(lambda x: x.volume_m3)
@@ -142,11 +144,10 @@ if __name__ == '__main__':
 
 
                 #median_df = median_df.append({'rgi': gdir.rgi_id, 'm_mod':m_mod,'ex_p':rp, 'min_mod':df.loc[df['objective'].idxmin(),'model']}, ignore_index=True)
-                ex_mod.run_until(yr)
-                m_mod.reset_y0(yr)
 
-                median_df.loc[gdir.rgi_id,yr] = m_mod.volume_km3 - ex_mod.volume_km3
+                median_df.loc[gdir.rgi_id,yr] = ex_mod.volume_km3_ts()[yr] - m_mod.volume_km3_ts()[yr]
                 plt.close()
+
                 '''
 
                 max_model = deepcopy(df.loc[df.volume.idxmax(), 'model'])
@@ -185,9 +186,13 @@ if __name__ == '__main__':
 #plot_range(rgidf,os.path.join(WORKING_DIR,'range.pkl'),cfg.PATHS['plot_dir'],False)
 
 median_df.to_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
-median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
-print(median_df)
+#median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
+
+#plot_median_over_time([median_df], cfg.PATHS['plot_dir'])
+
+
 #median_oe_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/oetztal/median.pkl')
 
 #median_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental/median.pkl')
 #plot_median_vs_min([median_df,median_oe_df], cfg.PATHS['plot_dir'])
+
