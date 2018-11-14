@@ -722,7 +722,7 @@ def plot_median(gdir,df,ex_mod,ys, plot_dir):
     plt.savefig(os.path.join(plot_dir,'median_'+str(ys)+'_'+gdir.rgi_id+'.pdf'), dpi=300)
     plt.savefig(os.path.join(plot_dir, 'median_' + str(ys)+'_'+gdir.rgi_id + '.png'), dpi=300)
 
-    #plt.close()
+    plt.close()
     return median_model
 
 

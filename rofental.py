@@ -103,10 +103,11 @@ if __name__ == '__main__':
         df_list = {}
         to_range = []
 
-        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')) and gdir.rgi_id.endswith('897'):
+        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')): #and gdir.rgi_id.endswith('897'):
 
-            print(gdir.rgi_id)
+            
             for yr in years:
+                print(gdir.rgi_id,yr)
 
                 #find_possible_glaciers(gdir,gdir.read_pickle('synthetic_experiment'),yr)
                 path = os.path.join(gdir.dir, 'result' + str(yr) + '.pkl')
@@ -145,7 +146,7 @@ if __name__ == '__main__':
                 m_mod.reset_y0(yr)
 
                 median_df.loc[gdir.rgi_id,yr] = m_mod.volume_km3 - ex_mod.volume_km3
-
+                plt.close()
                 '''
 
                 max_model = deepcopy(df.loc[df.volume.idxmax(), 'model'])
@@ -174,7 +175,6 @@ if __name__ == '__main__':
 
             #plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
             #plt.show()
-                '''
 
         else:
             print(gdir.rgi_id,' has no experiment')
