@@ -93,18 +93,17 @@ if __name__ == '__main__':
 
 
     #years = [1850,1875,1900,1925,1950]
-    years = np.arange(1850, 1970,10)
-    #years = [1850]
+    years = np.arange(1850, 1970,5)
+    #years = [1850,1900]
     volumes = pd.DataFrame()
     median_df = pd.DataFrame()
     #ranged = pd.DataFrame(columns=years)
 
     for gdir in gdirs:
-        print(gdir.dir)
         df_list = {}
         to_range = []
 
-        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')):
+        if os.path.isfile(os.path.join(gdir.dir,'synthetic_experiment.pkl')) and gdir.rgi_id.endswith('897'):
 
             print(gdir.rgi_id)
             for yr in years:
@@ -131,13 +130,21 @@ if __name__ == '__main__':
 
                 #plot_experiment(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                 #plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-                plot_candidates(gdir, df, ex_mod, yr, 'step3',cfg.PATHS['plot_dir'])
-                plot_col_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                #plot_candidates(gdir, df, ex_mod, yr, 'step3',cfg.PATHS['plot_dir'])
+                #plot_col_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+
                 try:
                     m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+
                 except:
-                    pass
+                    m_mod = df.loc[df['objective'].idxmin(), 'model']
+
+
                 #median_df = median_df.append({'rgi': gdir.rgi_id, 'm_mod':m_mod,'ex_p':rp, 'min_mod':df.loc[df['objective'].idxmin(),'model']}, ignore_index=True)
+                ex_mod.run_until(yr)
+                m_mod.reset_y0(yr)
+
+                median_df.loc[gdir.rgi_id,yr] = m_mod.volume_km3 - ex_mod.volume_km3
 
                 '''
 
@@ -158,7 +165,7 @@ if __name__ == '__main__':
                     ignore_index=True)
                 r = df[df.objective<=100].volume.max()-df[df.objective<=100].volume.min()
                 to_range.append(r)
-                '''
+
             plot_dir=os.path.join(cfg.PATHS['plot_dir'],'starting')
             utils.mkdir(plot_dir,reset=False)
                 
@@ -166,19 +173,20 @@ if __name__ == '__main__':
 
             #plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
             #plt.show()
+                '''
 
         else:
             print(gdir.rgi_id,' has no experiment')
 
 
-    #range.to_pickle(os.path.join(WORKING_DIR,'range.pkl'))
+#range.to_pickle(os.path.join(WORKING_DIR,'range.pkl'))
 
-    #plot_range(rgidf,os.path.join(WORKING_DIR,'range.pkl'),cfg.PATHS['plot_dir'],False)
+#plot_range(rgidf,os.path.join(WORKING_DIR,'range.pkl'),cfg.PATHS['plot_dir'],False)
 
-    #median_df.to_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
+median_df.to_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
+median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
+print(median_df)
+#median_oe_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/oetztal/median.pkl')
 
-
-    #median_oe_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/oetztal/median.pkl')
-
-    #median_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental/median.pkl')
-    #plot_median_vs_min([median_df,median_oe_df], cfg.PATHS['plot_dir'])
+#median_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/rofental/median.pkl')
+#plot_median_vs_min([median_df,median_oe_df], cfg.PATHS['plot_dir'])

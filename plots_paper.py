@@ -606,7 +606,8 @@ def plot_median(gdir,df,ex_mod,ys, plot_dir):
         plt.suptitle(gdir.rgi_id, fontsize=30)
 
     df = df.sort_values('objective', ascending=False)
-    df = df[df['objective']<100]
+    df = df[df.objective<100]
+
     min_id = df.volume.idxmin()
     max_id = df.volume.idxmax()
 
@@ -654,7 +655,7 @@ def plot_median(gdir,df,ex_mod,ys, plot_dir):
                      label=r'$Q_{0.05}(\mathcal{S}_{2000}^{100})$')
 
     # median of 5% quantile
-    quant_df['length'] = quant_df.model.apply(lambda x: x.length_m)
+    quant_df.loc[:,'length'] = quant_df.model.apply(lambda x: x.length_m)
     quant_df = quant_df.sort_values('length', ascending=False)
     l = len(quant_df)
     if l % 2:
@@ -720,7 +721,8 @@ def plot_median(gdir,df,ex_mod,ys, plot_dir):
 
     plt.savefig(os.path.join(plot_dir,'median_'+str(ys)+'_'+gdir.rgi_id+'.pdf'), dpi=300)
     plt.savefig(os.path.join(plot_dir, 'median_' + str(ys)+'_'+gdir.rgi_id + '.png'), dpi=300)
-    plt.close()
+
+    #plt.close()
     return median_model
 
 
