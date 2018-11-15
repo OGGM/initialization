@@ -763,8 +763,15 @@ def plot_median_vs_min(list,plot_dir):
     plt.savefig(os.path.join(plot_dir, 'boxplot.pdf'), dpi=300)
     plt.show()
 
+def _adjacent_values(vals, q1, q3):
+    upper_adjacent_value = q3 + (q3 - q1) * 1.5
+    upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
 
-def plot_median_over_time(list,plot_dir):
+    lower_adjacent_value = q1 - (q3 - q1) * 1.5
+    lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
+    return lower_adjacent_value, upper_adjacent_value
+
+def plot_abs_error_t0(list,ylabel,plot_dir):
 
     median = pd.concat(list,ignore_index=True)
 
@@ -774,11 +781,13 @@ def plot_median_over_time(list,plot_dir):
     whiskerprops = {'linewidth':3}
     capprops = {'linewidth': 3}
     flierprops = {'color': 'black','marker':'.', 'markerfacecolor':'black',
-                  'markersize':10}
+                  'markersize':5}
 
     ax.yaxis.grid(True, linestyle='-', which='major', color='lightgrey',
                   alpha=0.7, lw=2)
-    box = ax.boxplot(median.values,boxprops=boxprops,
+
+    ax.set_title('n = '+ str(len(median)))
+    box = ax.boxplot(median.values,showfliers=False,boxprops=boxprops,
                medianprops=medianprops,whiskerprops=whiskerprops,
                capprops=capprops,flierprops=flierprops,widths=0.5,
                patch_artist=True,labels=[1850,'','','','',1875,'','','','',1900,'','','','',1925,'','','','',1950,'','',''])
@@ -787,7 +796,11 @@ def plot_median_over_time(list,plot_dir):
         patch = patches.PathPatch(box['boxes'][i].get_path(), fill=False,edgecolor='black', lw=2)
         ax.add_patch(patch)
     ax.set_axisbelow(True)
-    plt.ylabel(r'Differences in volume ($km^3$)')
+    #ax.violinplot(median.values, showextrema=False)
+    plt.ylabel(ylabel)
+    plt.xlabel(r'Starting time $t_0$')
     plt.tight_layout()
-    #plt.savefig(os.path.join(plot_dir, 'boxplot.pdf'), dpi=300)
-    #plt.show()
+
+    plt.savefig(plot_dir, dpi=300)
+    plt.show()
+
