@@ -789,5 +789,5 @@ def plot_median_over_time(list,plot_dir):
     ax.set_axisbelow(True)
     plt.ylabel(r'Differences in volume ($km^3$)')
     plt.tight_layout()
-    plt.savefig(os.path.join(plot_dir, 'boxplot.pdf'), dpi=300)
-    plt.show()
+    #plt.savefig(os.path.join(plot_dir, 'boxplot.pdf'), dpi=300)
+    #plt.show()
