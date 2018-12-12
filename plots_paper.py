@@ -521,7 +521,7 @@ def plot_fitness_over_time3(gdir, df_list, ex_mod, plot_dir,ax,fig):
     #plt.close()
     #plt.show()
 
-def plot_col_fitness(gdir,df,ex_mod,min_mod,ys, plot_dir):
+def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
 
     plot_dir = os.path.join(plot_dir,'03_surface_by_fitness', gdir.rgi_id)
     utils.mkdir(plot_dir)
