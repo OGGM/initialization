@@ -297,10 +297,19 @@ def objective_value(model1, model2):
     :param model2: oggm.flowline.FluxBasedModel
     :return:       float
     """
+
+    model1 = copy.deepcopy(model1)
+    model2 = copy.deepcopy(model2)
+    model2.run_until(2000)
+    model1.run_until(2000)
+
     fls1 = model1.fls
     fls2 = model2.fls
-    return(np.sum(abs(fls1[-1].surface_h-fls2[-1].surface_h)**2)+ \
-          np.sum(abs(fls1[-1].widths-fls2[-1].widths)**2))
+    objective=0
+    for i in range(len(model1.fls)):
+        objective = objective + np.sum(abs(fls1[i].surface_h-fls2[i].surface_h)**2)+ \
+          np.sum(abs(fls1[i].widths-fls2[i].widths)**2)
+    return objective
 
 
 def prepare_for_initializing(gdirs):
