@@ -183,7 +183,9 @@ def plot_compare_fitness(gdir,df,ex_mod,ys, plot_dir):
     plt.setp(ax1.get_xticklabels(), visible=False)
 
     if gdir.name != '':
-        ax1.set_title(gdir.rgi_id+':'+gdir.name,fontsize=30)
+        ax1.set_title(gdir.rgi_id+': '+gdir.name,fontsize=30)
+    elif gdir.rgi_id.endswith('779'):
+        ax1.set_title(gdir.rgi_id + ': Guslarferner', fontsize=30)
     else:
         ax1.set_title(gdir.rgi_id, fontsize=30)
 
@@ -227,11 +229,11 @@ def plot_compare_fitness(gdir,df,ex_mod,ys, plot_dir):
 
     # plot experiments
     ex_mod = deepcopy(ex_mod)
-    ex_mod.volume_m3_ts().plot(ax=ax1, color='k', linestyle=':', linewidth=3,
+    ex_mod.volume_m3_ts().plot(ax=ax1, color='red', linestyle=':', linewidth=3,
                                label=r'$s_{1850-2000}^{exp}$')
-    ex_mod.volume_m3_ts().plot(ax=ax2, color='k', linestyle=':', linewidth=3,
+    ex_mod.volume_m3_ts().plot(ax=ax2, color='red', linestyle=':', linewidth=3,
                                label=r'$s_{1850-2000}^{exp}$')
-    ex_mod.volume_m3_ts().plot(ax=ax3, color='k', linestyle=':', linewidth=3, label=r'$s_{1850-2000}^{exp}$')
+    ex_mod.volume_m3_ts().plot(ax=ax3, color='red', linestyle=':', linewidth=3, label=r'$s_{1850-2000}^{exp}$')
     ex_mod.reset_y0(1850)
     ex_mod.run_until(ys)
     '''
@@ -265,6 +267,7 @@ def plot_compare_fitness(gdir,df,ex_mod,ys, plot_dir):
     #ax3.legend(loc=1)
 
     ax2.set_ylabel(r'Volume ($km^3$)', fontsize=30)
+    ax3.set_xlabel(r'Time',fontsize=30)
     #ax1.set_xlabel('Distance along the main flowline (m)', fontsize=30)
     #ax2.set_ylabel('Altitude (m)',fontsize=30)
     #ax2.set_xlabel('Distance along the main flowline (m)',fontsize=30)
@@ -274,8 +277,8 @@ def plot_compare_fitness(gdir,df,ex_mod,ys, plot_dir):
     ax2.tick_params(axis='both', which='major', labelsize=30)
     #ax3.tick_params(axis='both', which='major', labelsize=30)
     #ax3.yaxis.offsetText.set_fontsize(30)
-    plt.show()
-    #plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.pdf'), dpi=300)
+    #plt.show()
+    plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.pdf'), dpi=300)
     '''
     df['diff'] = df.objective.apply(lambda x: norm(x)) - df.objective2.apply(
         lambda x: norm2(x))
@@ -302,8 +305,108 @@ def plot_compare_fitness(gdir,df,ex_mod,ys, plot_dir):
     #plt.show()
     plt.close()
 
+def objective__complete(model1, model2):
+    """
+    calculates the objective value (difference in geometry)
+    :param model1: oggm.flowline.FluxBasedModel
+    :param model2: oggm.flowline.FluxBasedModel
+    :return:       float
+    """
+    model2.run_until(2000)
+    model1.run_until(2000)
+
+    fls1 = model1.fls
+    fls2 = model2.fls
+    objective=0
+    for i in range(len(model1.fls)):
+        objective = objective + np.sum(abs(fls1[i].surface_h-fls2[i].surface_h)**2)+ \
+          np.sum(abs(fls1[i].widths-fls2[i].widths)**2)
+
+    return objective
+
+def plot_compare_fitness_complete(gdir,df,ex_mod,ys, plot_dir):
+
+    plot_dir = os.path.join(plot_dir, '05_a_compare_fitness')
+    utils.mkdir(plot_dir)
+    x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * ex_mod.fls[-1].map_dx
+
+    fig = plt.figure(figsize=(15,14))
+
+    grid = plt.GridSpec(3, 1, hspace=0.2, wspace=0.2)
+    ax1 = plt.subplot(grid[0, 0])
+    ax2 = plt.subplot(grid[1, 0],sharex=ax1)
+
+    plt.setp(ax2.get_xticklabels(), visible=False)
+    plt.setp(ax1.get_xticklabels(), visible=False)
+
+    if gdir.name != '':
+        ax1.set_title(gdir.rgi_id+':'+gdir.name,fontsize=30)
+    else:
+        ax1.set_title(gdir.rgi_id, fontsize=30)
+
+    df['objective2'] = df.model.apply(objective__complete, model2=ex_mod)
+
+
+    norm = mpl.colors.LogNorm(vmin=e-1, vmax=1e5,clip=True)
+    norm2 = mpl.colors.LogNorm(vmin=df.objective2.min()+1,vmax=df.objective2.max(),clip=True)
+
+    cmap = matplotlib.cm.get_cmap('viridis')
+
+    df = df.sort_values('objective', ascending=False)
+    for i, model in df['model'].iteritems():
+        color = cmap(norm(df.loc[i, 'objective']))
+
+        model.volume_m3_ts().plot(ax=ax1, color=[color],
+                                  linewidth=3,
+                                  label=r'$s_{1850-2000}^{exp}$')
+
+    df = df.sort_values('objective2', ascending=False)
+    for i, model in df['model'].iteritems():
+        color = cmap(norm(int(df.loc[i, 'objective2'])))
+
+        model.volume_m3_ts().plot(ax=ax2, color=[color],
+                                   linewidth=3,
+                                   label=r'$s_{1850-2000}^{exp}$')
+
+    # plot experiments
+    ex_mod = deepcopy(ex_mod)
+    ex_mod.volume_m3_ts().plot(ax=ax1, color='k', linestyle=':', linewidth=3,
+                               label=r'$s_{1850-2000}^{exp}$')
+    ex_mod.volume_m3_ts().plot(ax=ax2, color='k', linestyle=':', linewidth=3,
+                               label=r'$s_{1850-2000}^{exp}$')
+
+    # add colorbar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cax, kw = mpl.colorbar.make_axes([ax1,ax2])
+    cbar = fig.colorbar(sm, cax=cax ,**kw)
+    cbar.ax.tick_params(labelsize=30)
+    cbar.set_label('Normalized fitness value', fontsize=30)
+
+
+    # add figure names and legends
+    add_at(ax1, r"a", loc=1)
+    add_at(ax2, r"b", loc=1)
+
+
+    ax2.set_ylabel(r'Volume ($km^3$)', fontsize=30)
+
+
+    ax1.tick_params(axis='both', which='major', labelsize=30)
+    ax2.tick_params(axis='both', which='major', labelsize=30)
+
+    plt.show()
+    #plt.savefig(os.path.join(plot_dir,gdir.rgi_id+'.pdf'), dpi=300)
+
+    (df.objective - df.objective2).plot.hist()
+    plt.show()
+    plt.close()
+
+
 def plot_fitness_over_time2(gdir, df_list, ex_mod, plot_dir):
+
     from matplotlib.patches import Rectangle, Circle
+
     fig = plt.figure(figsize=(20, 10))
     ax = fig.add_subplot(111, yscale='linear')
     norm = mpl.colors.LogNorm(vmin=0.1, vmax=1e5)
@@ -343,7 +446,7 @@ def plot_fitness_over_time2(gdir, df_list, ex_mod, plot_dir):
                           color=color))
 
     # add experiment in plot
-    ex_mod.volume_m3_ts().plot(ax=ax, linestyle=':', color='gold')
+    ex_mod.volume_m3_ts().plot(ax=ax, linestyle=':', color='red')
     ax.set_xlim(1847.5, 1967.5)
     ax.set_ylim(volumes[0], volumes[-1])
     plt.title(gdir.rgi_id + ': ' + gdir.name, fontsize=25)
@@ -361,7 +464,64 @@ def plot_fitness_over_time2(gdir, df_list, ex_mod, plot_dir):
     #plt.show()
 
 
-def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
+def plot_fitness_over_time3(gdir, df_list, ex_mod, plot_dir,ax,fig):
+
+    from matplotlib.patches import Rectangle, Circle
+
+    norm = mpl.colors.LogNorm(vmin=0.1, vmax=1e5)
+    cmap = matplotlib.cm.get_cmap('viridis')
+
+    volumes = np.linspace(df_list['1850'].volume.min(),
+                          df_list['1850'].volume.max(), 100)
+
+    for year, df in df_list.items():
+        color = []
+        for i in range(len(volumes)):
+            if i != len(volumes) - 1:
+                part = df[(df.volume >= volumes[i]) & (
+                df.volume <= volumes[i + 1])]
+                color.append(part.objective.min())
+            else:
+                part = df[df.volume >= volumes[i]]
+                color.append(part.objective.mean())  # or min
+
+        # interpolate missing data
+        missing = np.where(np.isnan(color))
+        if len(missing[0]) != 0:
+            xp = np.delete(range(len(volumes)), missing)
+            fp = np.delete(color, missing)
+            missing_y = np.interp(missing, xp, fp)
+            for i, j in enumerate(missing[0]):
+                color[j] = missing_y[0][i]
+
+        year = np.zeros(len(volumes)) + int(year)
+        for x, y, c in zip(volumes, year, color):
+            if np.isnan(c):
+                color = 'white'
+            else:
+                color = cmap(norm(c))
+            ax.add_patch(
+                Rectangle((y - 2.5, x), 5, volumes[1] - volumes[0],
+                          color=color))
+
+    # add experiment in plot
+    ex_mod.volume_m3_ts().plot(ax=ax, linestyle=':', color='red')
+    ax.set_xlim(1847.5, 1967.5)
+    ax.set_ylim(volumes[0], volumes[-1])
+
+    ax.set_ylabel(r'Volume $(m^3)$')
+    ax.set_xlabel('Starting time')
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cax, kw = mpl.colorbar.make_axes([ax])
+    cbar = fig.colorbar(sm, cax=cax, **kw)
+    cbar.ax.tick_params(labelsize=25)
+    cbar.set_label('Fitness value', fontsize=25)
+    #plt.savefig(os.path.join(plot_dir, 'starting' '_' + gdir.rgi_id + '.png'))
+    #plt.close()
+    #plt.show()
+
+def plot_col_fitness(gdir,df,ex_mod,min_mod,ys, plot_dir):
 
     plot_dir = os.path.join(plot_dir,'03_surface_by_fitness', gdir.rgi_id)
     utils.mkdir(plot_dir)
@@ -374,8 +534,10 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
 
     if gdir.name != '':
         plt.suptitle(gdir.rgi_id+': '+gdir.name,fontsize=30)
-    else:
+    elif gdir.rgi_id.endswith('779'):
         plt.suptitle(gdir.rgi_id+': Guslarferner', fontsize=30)
+    else:
+        plt.suptitle(gdir.rgi_id , fontsize=30)
 
     norm = mpl.colors.LogNorm(vmin=0.1, vmax=1e5)
     cmap = matplotlib.cm.get_cmap('viridis')
@@ -396,17 +558,18 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
 
     # plot experiments
     ex_mod = deepcopy(ex_mod)
-    ex_mod.volume_m3_ts().plot(ax=ax3, color='gold', linestyle=':', linewidth=3, label='')
+    ex_mod.volume_m3_ts().plot(ax=ax3, color='red', linestyle=':', linewidth=3, label='')
     ex_mod.reset_y0(1850)
     ex_mod.run_until(ys)
 
-    ax1.plot(x, ex_mod.fls[-1].surface_h, ':', color='gold',label='',linewidth=3)
+    ax1.plot(x, ex_mod.fls[-1].surface_h, ':', color='red',label='',linewidth=3)
     ax1.plot(x, ex_mod.fls[-1].bed_h, 'k',label='', linewidth=3)
 
     ex_mod.run_until(2000)
 
-    ax2.plot(x, ex_mod.fls[-1].surface_h, ':', color='gold',label='', linewidth=3)
+    ax2.plot(x, ex_mod.fls[-1].surface_h, ':', color='red',label='', linewidth=3)
     ax2.plot(x, ex_mod.fls[-1].bed_h, 'k', label='',linewidth=3)
+
 
     # add colorbar
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -470,6 +633,7 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
 
 
     ax3.set_xlim(xmin=1847, xmax=2003)
+    #plt.show()
     plt.savefig(os.path.join(plot_dir,'surface_'+str(ys)+'_'+gdir.rgi_id+'.pdf'), dpi=300)
     plt.savefig(os.path.join(plot_dir, 'surface_' + str(ys) + '_' + gdir.rgi_id + '.png'), dpi=300)
     plt.close()
@@ -602,6 +766,8 @@ def plot_median(gdir,df,ex_mod,ys, plot_dir):
 
     if gdir.name != '':
         plt.suptitle(gdir.rgi_id + ': ' + gdir.name, fontsize=30)
+    elif gdir.rgi_id.endswith('779'):
+        plt.suptitle(gdir.rgi_id + ': Guslarferner', fontsize=30)
     else:
         plt.suptitle(gdir.rgi_id, fontsize=30)
 
@@ -790,7 +956,8 @@ def plot_abs_error_t0(list,ylabel,plot_dir):
     box = ax.boxplot(median.values,showfliers=False,boxprops=boxprops,
                medianprops=medianprops,whiskerprops=whiskerprops,
                capprops=capprops,flierprops=flierprops,widths=0.5,
-               patch_artist=True,labels=[1850,'','','','',1875,'','','','',1900,'','','','',1925,'','','','',1950,'','',''])
+               patch_artist=True,labels=[1850,'','','','',1875,'','','','',1900,'','','','',1925,'','','','',1950,'','','']
+                )
     for i in range(len(box['boxes'])):
         box['boxes'][i].set_alpha(0.3)
         patch = patches.PathPatch(box['boxes'][i].get_path(), fill=False,edgecolor='black', lw=2)
@@ -801,6 +968,223 @@ def plot_abs_error_t0(list,ylabel,plot_dir):
     plt.xlabel(r'Starting time $t_0$')
     plt.tight_layout()
 
+    plt.savefig(plot_dir, dpi=300)
+    plt.show()
+
+def plot_error_t02(list,plot_dir,abs=True):
+    import ptitprince as pt
+    import seaborn as sns
+
+    merge = list[0].append(list[1])
+    for rgi in merge.index:
+        merge.loc[rgi, 'end'] = rgi.split('11.')[-1]
+    to_delete = merge['end'].value_counts() > 1
+    to_delete = to_delete[to_delete == True].index
+
+    for rgi in list[1].index:
+        if rgi.split('11.')[-1] in to_delete:
+            list[1] = list[1].drop(rgi)
+    median = list[0].append(list[1])
+
+
+    fig, ax = plt.subplots(figsize=(10,15))
+
+    median = median.loc[:,median.columns.astype(float) %10==0]
+
+    pt.half_violinplot(data=median.values,split=True,label='',ax=ax,linewidth=2,width=1.2,
+                      bw=.1,color='C0',alpha=0.1 ,scale='area', inner=None,orient='h')
+
+    sns.boxplot(data=median.values,width=0.2,
+                boxprops={'facecolor': 'none', "zorder": 10,'linewidth': 2,'edgecolor':'k'},
+                medianprops={'color': 'C0', 'linewidth': 2},
+                flierprops={'marker': '.', 'markerfacecolor': 'k','markeredgecolor':'k','markersize': 8},
+                capprops={'linewidth': 2,'color':'k'}, whiskerprops={'linewidth': 2,'color':'k'},orient='h',
+                )
+
+    from matplotlib.collections import PolyCollection
+    ax = plt.gca()
+    for art in ax.get_children():
+        if isinstance(art, PolyCollection):
+
+            art.set_facecolor(matplotlib.colors.colorConverter.to_rgba('C0', alpha=.5))
+            art.set_edgecolor('k')
+
+
+    '''
+    ax = sns.stripplot(data=median.values, color='C0', edgecolor="white", size=3,
+                     jitter=1, zorder=0,orient='h')
+
+    ax = sns.boxplot(data=median.values, color="black",  width=.15,orient='h', zorder=10, \
+                     showcaps=True,
+                     boxprops={'facecolor': 'none', "zorder": 10,'linewidth': 1}, \
+                     showfliers=False,
+                     medianprops={'color': 'black', 'linewidth': 2},
+                     capprops={'linewidth': 1},
+                     whiskerprops={'linewidth': 1, "zorder": 10}, saturation=1)
+    '''
+
+
+    ax.set_axisbelow(True)
+
+
+    #ax.set_xticklabels([1850,'','','','',1875,'','','','',1900,'','','','',1925,'','','','',1950,'','',''])
+    #ax.set_yticklabels(['1850', '', '', '', '', 1900, '', '', '', '', 1950, ''])
+    ax.set_yticklabels(median.columns)
+    ax.xaxis.grid(True, linestyle='-', which='major', color='lightgrey',
+                  alpha=0.7, lw=2)
+
+    plt.ylabel(r'Starting time $t_0$',fontsize=15)
+    ax.tick_params(axis='both', which='major', labelsize=15)
+    plt.tight_layout()
+
+    if abs:
+        plt.xlabel(r'Absolute error in $t_0$ ($km^3)$', fontsize=15)
+        ax.set_xlim((-0.25,0.25))
+    else:
+        plt.xlabel(r'Logarithmic error in $t_0$', fontsize=15)
+        ax.set_ylim(11.5,-1)
+    plt.savefig(plot_dir, dpi=300)
+    plt.show()
+
+
+def plot_error_t03(list,plot_dir, gdirs,abs=True):
+    import ptitprince as pt
+    import seaborn as sns
+
+    merge = list[0].append(list[1])
+    for rgi in merge.index:
+        merge.loc[rgi, 'end'] = rgi.split('11.')[-1]
+    to_delete = merge['end'].value_counts() > 1
+    to_delete = to_delete[to_delete == True].index
+
+    for rgi in list[1].index:
+        if rgi.split('11.')[-1] in to_delete:
+            list[1] = list[1].drop(rgi)
+    median = list[0].append(list[1])
+
+    fig, ax = plt.subplots(figsize=(10,15))
+
+    median = median.loc[:,median.columns.astype(float) %10==0]
+    for gdir in gdirs:
+        if gdir.rgi_id in median.index:
+            rp = gdir.get_filepath('model_run', filesuffix='experiment')
+            ex_mod = FileModel(rp)
+            print(ex_mod.volume_km3_ts()[1960])
+    print(median)
+
+    pt.half_violinplot(data=median[:30].values,split=True,label='',ax=ax,linewidth=2,width=1.2,
+                      bw=.1,color='C0',alpha=0.1 ,scale='area', inner=None,orient='h')
+
+    sns.boxplot(data=median[:30].values,width=0.2,
+                boxprops={'facecolor': 'none', "zorder": 10,'linewidth': 2,'edgecolor':'k'},
+                medianprops={'color': 'C0', 'linewidth': 2},
+                flierprops={'marker': '.', 'markerfacecolor': 'k','markeredgecolor':'k','markersize': 8},
+                capprops={'linewidth': 2,'color':'k'}, whiskerprops={'linewidth': 2,'color':'k'},orient='h',
+                )
+
+    from matplotlib.collections import PolyCollection
+    ax = plt.gca()
+    for art in ax.get_children():
+        if isinstance(art, PolyCollection):
+
+            art.set_facecolor(matplotlib.colors.colorConverter.to_rgba('C0', alpha=.5))
+            art.set_edgecolor('k')
+
+    pt.half_violinplot(data=median[30:-1].values, split=True, label='', ax=ax,
+                       linewidth=2, width=1.2,
+                       bw=.1, color='C1', alpha=0.1, scale='area', inner=None,
+                       orient='h')
+    sns.boxplot(data=median[30:-1].values, width=0.2,
+                boxprops={'facecolor': 'none', "zorder": 10, 'linewidth': 2,
+                          'edgecolor': 'C1'},
+                medianprops={'color': 'C1', 'linewidth': 2},
+                flierprops={'marker': '.', 'markerfacecolor': 'C1',
+                            'markeredgecolor': 'C1', 'markersize': 8},
+                capprops={'linewidth': 2, 'color': 'C1'},
+                whiskerprops={'linewidth': 2, 'color': 'C1'}, orient='h',
+                )
+    for art in ax.get_children():
+        if isinstance(art, PolyCollection):
+            art.set_facecolor(matplotlib.colors.colorConverter.to_rgba(art.get_facecolor()[0][:-1], alpha=.5))
+            art.set_edgecolor('k')
+
+
+    ax.set_axisbelow(True)
+
+    ax.set_yticklabels(median.columns[:-1])
+    ax.xaxis.grid(True, linestyle='-', which='major', color='lightgrey',
+                  alpha=0.7, lw=2)
+
+    plt.ylabel(r'Starting time $t_0$',fontsize=15)
+    ax.tick_params(axis='both', which='major', labelsize=15)
+    plt.tight_layout()
+
+    if abs:
+        plt.xlabel(r'Absolute error in $t_0$ ($km^3)$', fontsize=15)
+        ax.set_xlim((-0.25,0.25))
+    else:
+        plt.xlabel(r'Logarithmic error in $t_0$', fontsize=15)
+        ax.set_ylim(11.5,-1)
+    plt.savefig(plot_dir, dpi=300)
+    plt.show()
+
+
+def plot_min_vs_med(list, ylabel, plot_dir):
+    import ptitprince as pt
+    import seaborn as sns
+
+    merge = list[0].append(list[1])
+    for rgi in merge.index:
+        merge.loc[rgi,'end'] = rgi.split('11.')[-1]
+    to_delete = merge['end'].value_counts()>1
+    to_delete = to_delete[to_delete==True].index
+
+    for rgi in list[1].index:
+        if rgi.split('11.')[-1] in to_delete:
+            list[1] = list[1].drop(rgi)
+    median = list[0].append(list[1])
+    print(len(median))
+    fig, ax = plt.subplots(figsize=(10, 8))
+    # median = median.loc[:,median.columns %10==0]
+
+    pt.half_violinplot(data=median.values, split=True, label='', ax=ax,
+                       linewidth=2, width=1,orient='h',
+                       bw=.075, color='C0', alpha=0.1, scale='area', inner=None)
+
+    print(len(median.values[0]))
+    sns.boxplot(data=median.values, width=0.2,orient='h',
+                boxprops={'facecolor': 'none', "zorder": 10, 'linewidth': 2,
+                          'edgecolor': 'k'},
+                medianprops={'color': 'C0', 'linewidth': 2},
+                flierprops={'marker': '.', 'markerfacecolor': 'k',
+                            'markeredgecolor': 'k', 'markersize': 8},
+                capprops={'linewidth': 2, 'color': 'k'},
+                whiskerprops={'linewidth': 2, 'color': 'k'},
+                )
+
+    from matplotlib.collections import PolyCollection
+    ax = plt.gca()
+    for art in ax.get_children():
+        if isinstance(art, PolyCollection):
+            art.set_facecolor(
+                matplotlib.colors.colorConverter.to_rgba('C0', alpha=.5))
+            art.set_edgecolor('k')
+
+
+    ax = sns.stripplot(data=median.values, color='C0', edgecolor="white", size=3,
+                     jitter=1, zorder=0,alpha=0.5,orient='h')
+
+
+    ax.set_axisbelow(True)
+
+    ax.set_yticklabels(['median', 'minimum'],rotation=90,verticalalignment="center")
+    ax.xaxis.grid(True, linestyle='-', which='major', color='lightgrey',
+                  alpha=0.7, lw=2)
+
+    plt.xlabel('Logarithmic error in 1850', fontsize=25)
+    ax.tick_params(axis='both', which='major', labelsize=25)
+    ax.set_ylim((1.25,-0.75))
+    # plt.tight_layout()
     plt.savefig(plot_dir, dpi=300)
     plt.show()
 
