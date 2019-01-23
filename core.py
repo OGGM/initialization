@@ -336,10 +336,9 @@ def prepare_for_initializing(gdirs):
 
     workflow.climate_tasks(gdirs)
     workflow.execute_entity_task(tasks.prepare_for_inversion, gdirs)
-    glen_a = cfg.glen_a
 
     for gdir in gdirs:
-        mass_conservation_inversion(gdir, glen_a=glen_a)
+        mass_conservation_inversion(gdir)
 
     workflow.execute_entity_task(tasks.volume_inversion, gdirs)
     workflow.execute_entity_task(tasks.filter_inversion_output, gdirs)
