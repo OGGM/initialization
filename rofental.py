@@ -96,9 +96,10 @@ if __name__ == '__main__':
     years = np.arange(1850, 1970,5)
     #years = [1850,1900]
     volumes = pd.DataFrame()
-    median_df = pd.DataFrame()
+    exp = pd.DataFrame()
+    #median_df = pd.DataFrame()
     #ranged = pd.DataFrame(columns=years)
-    median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
+    #median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
     for gdir in gdirs:
         df_list = {}
         to_range = []
@@ -145,10 +146,12 @@ if __name__ == '__main__':
 
                 #median_df = median_df.append({'rgi': gdir.rgi_id, 'm_mod':m_mod,'ex_p':rp, 'min_mod':df.loc[df['objective'].idxmin(),'model']}, ignore_index=True)
 
-                median_df.loc[gdir.rgi_id,yr] = ex_mod.volume_km3_ts()[yr] - m_mod.volume_km3_ts()[yr]
+                #median_df.loc[gdir.rgi_id,yr] = ex_mod.volume_km3_ts()[yr] - m_mod.volume_km3_ts()[yr]
+                volumes.loc[gdir.rgi_id,yr]= m_mod.volume_km3_ts()[yr]
+                exp.loc[gdir.rgi_id,yr] = ex_mod.volume_km3_ts()[yr]
                 plt.close()
 
-                '''
+            '''
 
                 max_model = deepcopy(df.loc[df.volume.idxmax(), 'model'])
 
@@ -168,7 +171,7 @@ if __name__ == '__main__':
                 r = df[df.objective<=100].volume.max()-df[df.objective<=100].volume.min()
                 to_range.append(r)
 
-                '''
+            '''
             #plot_dir=os.path.join(cfg.PATHS['plot_dir'],'starting')
             #utils.mkdir(plot_dir,reset=False)
                 
@@ -184,8 +187,9 @@ if __name__ == '__main__':
 #range.to_pickle(os.path.join(WORKING_DIR,'range.pkl'))
 
 #plot_range(rgidf,os.path.join(WORKING_DIR,'range.pkl'),cfg.PATHS['plot_dir'],False)
-
-median_df.to_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
+volumes.to_pickle(os.path.join(WORKING_DIR,'volumes.pkl'))
+exp.to_pickle(os.path.join(WORKING_DIR,'exp.pkl'))
+#median_df.to_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
 #median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
 
 #plot_median_over_time([median_df], cfg.PATHS['plot_dir'])

@@ -1,6 +1,7 @@
 from core import *
 from plots_paper import *
 
+import time
 import os
 from copy import deepcopy
 from functools import partial
@@ -33,7 +34,7 @@ if __name__ == '__main__':
     cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'], 'plots')
     utils.mkdir(cfg.PATHS['plot_dir'], reset=False)
 
-    cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
+    #cfg.PATHS['dem_file'] = get_demo_file('srtm_oetztal.tif')
 
     # Use multiprocessing?
     cfg.PARAMS['use_multiprocessing'] = True
@@ -59,25 +60,30 @@ if __name__ == '__main__':
     cfg.BASENAMES['synthetic_experiment'] = ('synthetic_experiment.pkl', _doc)
 
     # initialization
-    rgi = get_demo_file('rgi_oetztal.shp')
+    #rgi = get_demo_file('rgi_oetztal.shp')
+    rgi = '/home/users/julia/reconstruction/oetztal.shp'
+
     rgidf = salem.read_shapefile(rgi)
 
-    gdirs = workflow.init_glacier_regions(rgidf)
+    gdirs = workflow.init_glacier_regions(rgidf.loc[(rgidf.RGIId != 'RGI60-11.00714') & (rgidf.RGIId != 'RGI60-11.00480')])
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
     prepare_for_initializing(gdirs)
-    synthetic_experiments_parallel(gdirs)
+    synthetic_experiments_parallel(gdirs[121:])
 
     years = np.arange(1850, 1970, 5)
+    years = [1850]
 
     volumes = pd.DataFrame()
     rel_error_df = pd.DataFrame()
     abs_error_df = pd.DataFrame()
+    min_med_error_df = pd.DataFrame()
+    time_df = pd.DataFrame()
 
     for gdir in gdirs:
         df_list = {}
         to_range = []
-
-        if os.path.isfile(os.path.join(gdir.dir, 'synthetic_experiment.pkl')):  # and gdir.rgi_id.endswith('897'):
+        start = time.time()
+        if os.path.isfile(os.path.join(gdir.dir, 'synthetic_experiment.pkl')): # and not gdir.rgi_id.endswith('897') and not gdir.rgi_id.endswith('958'):
             print(gdir.rgi_id)
             for yr in years:
 
@@ -101,64 +107,48 @@ if __name__ == '__main__':
 
                 df_list[str(yr)]=df
 
-
-                plot_experiment(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-                plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-                plot_candidates(gdir, df, ex_mod, yr, 'step3',cfg.PATHS['plot_dir'])
-                plot_col_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-
                 try:
-                    m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                    plot_experiment(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                    plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                    plot_candidates(gdir, df, ex_mod, yr, 'step3',cfg.PATHS['plot_dir'])
+                    plot_col_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
 
+                    try:
+                        m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+
+                    except:
+                        m_mod = df.loc[df['objective'].idxmin(), 'model']
                 except:
-                    m_mod = df.loc[df['objective'].idxmin(), 'model']
-
-                #median_df = median_df.append({'rgi': gdir.rgi_id, 'm_mod':m_mod,'ex_p':rp, 'min_mod':df.loc[df['objective'].idxmin(),'model']}, ignore_index=True)
-
+                    pass
+                min_mod = deepcopy(df.loc[df.objective.idxmin(), 'model'])
+                
                 abs_error_df.loc[gdir.rgi_id,yr] = m_mod.volume_km3_ts()[yr] - ex_mod.volume_km3_ts()[yr]
-                rel_error_df.loc[gdir.rgi_id, yr] = abs_error_df.loc[gdir.rgi_id, yr] / ex_mod.volume_km3_ts()[yr]
-    '''
+                rel_error_df.loc[gdir.rgi_id, yr] = np.log(m_mod.volume_km3_ts()[yr]/ ex_mod.volume_km3_ts()[yr])
+                min_med_error_df.loc[gdir.rgi_id,'min'] = np.log(min_mod.volume_km3_ts()[1850]/ ex_mod.volume_km3_ts()[1850])
+                min_med_error_df.loc[gdir.rgi_id,'med'] = np.log(m_mod.volume_km3_ts()[1850]/ ex_mod.volume_km3_ts()[1850])
+            time_df.loc[gdir.rgi_id,'time'] = time.time()-start
+            plt.close()
+            #plot_dir=os.path.join(cfg.PATHS['plot_dir'],'starting')
+            #utils.mkdir(plot_dir,reset=False)
 
-                max_model = deepcopy(df.loc[df.volume.idxmax(), 'model'])
-
-                max_obj = df.loc[df.volume.idxmax(), 'objective']
-
-                rp = gdir.get_filepath('model_run', filesuffix='experiment')
-                ex_mod = FileModel(rp)
-                v1850 = deepcopy(ex_mod.volume_m3)
-                print(gdir.rgi_id,v1850)
-                ex_mod.run_until(2000)
-                v2000 = ex_mod.volume_m3
-                volumes = volumes.append(
-                    {'rgi': gdir.rgi_id, 'ratio(experiment)': v1850 / v2000,
-                     'ratio(max)': df.volume.max() / v2000,
-                     'objective(max)': max_obj, 'temp_bias': df.temp_bias.min()},
-                    ignore_index=True)
-                r = df[df.objective<=100].volume.max()-df[df.objective<=100].volume.min()
-                to_range.append(r)
-
-            plot_dir=os.path.join(cfg.PATHS['plot_dir'],'starting')
-            utils.mkdir(plot_dir,reset=False)
-
-            #range.loc[gdir.rgi_id,:] = to_range
+            
 
             #plot_fitness_over_time2(gdir,df_list,ex_mod,plot_dir)
             #plt.show()
 
 
         else:
+            time_df.loc[gdir.rgi_id,'time'] = 'experiment failed'
             print(gdir.rgi_id,' has no experiment')
-    '''
 
-# range.to_pickle(os.path.join(WORKING_DIR,'range.pkl'))
-
-# plot_range(rgidf,os.path.join(WORKING_DIR,'range.pkl'),cfg.PATHS['plot_dir'],False)
-
-abs_error_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error.pkl'))
+abs_error_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error2.pkl'))
+rel_error_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error2.pkl'))
+min_med_error_df.to_pickle(os.path.join(WORKING_DIR, 'min_error2.pkl'))
+time_df.to_pickle(os.path.join(WORKING_DIR, 'time2.pkl'))
 # median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
 #plot_abs_error_t0([abs_error_df], r'Absoulte error in $t_0$',
 #                  os.path.join(cfg.PATHS['plot_dir'], 'abs_error.png'))
-rel_error_df = pd.read_pickle(os.path.join(WORKING_DIR, 'rel_error.pkl'))
+#rel_error_df = pd.read_pickle(os.path.join(WORKING_DIR, 'rel_error.pkl'))
 #plot_abs_error_t0([rel_error_df.dropna(axis=0)], r'Relative error in $t_0$',
 #                  os.path.join(cfg.PATHS['plot_dir'], 'rel_error.png'))
 # median_oe_df = pd.read_pickle('/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/oetztal/median.pkl')
