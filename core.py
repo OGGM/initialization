@@ -235,18 +235,19 @@ def find_temp_bias_range(gdir, y0):
         n = len(random_run_list)
         list = [((i + n + 1) ** 2, b.round(3)) for i, b in enumerate(np.arange(2.05, 3, 0.05))]
         random_run_list = random_run_list.append(_run_random_parallel(gdir, y0, list), ignore_index=True)
-
+    i = 0
     # find t_eq
-    for suffix in random_run_list['suffix'].head(10).values:
-
-        try:
-            rp = gdir.get_filepath('model_run', filesuffix=suffix)
-            fmod = FileModel(rp)
-            t = _find_t_eq(fmod.volume_m3_ts())
-            if t > t_eq:
-                t_eq = t
-        except:
-            pass
+    for suffix in random_run_list['suffix'].values:
+        if i < 10:
+            try:
+                rp = gdir.get_filepath('model_run', filesuffix=suffix)
+                fmod = FileModel(rp)
+                t = _find_t_eq(fmod.volume_m3_ts())
+                if t > t_eq:
+                    t_eq = t
+                i = i+1
+            except:
+                pass
 
     all = pd.DataFrame()
     for suffix in random_run_list['suffix']:

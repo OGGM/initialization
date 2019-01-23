@@ -120,12 +120,10 @@ def plot_candidates(gdir, df, ex_mod, yr, step,plot_dir):
     # last one again for labeling
     label = r'temperature bias $\in [$' + str(
         df['temp_bias'].min()) + ',' + str(df['temp_bias'].max()) + '$]$'
-
+    df.time = df.time.apply(lambda x: int(x))
     t_eq = df['time'].sort_values().iloc[0]
 
     df['Fitness value'] = df.objective
-    df.time = df.time.apply(lambda x: int(x))
-
     plt.title(gdir.rgi_id)
 
     if step == 'step1':
@@ -153,7 +151,6 @@ def plot_candidates(gdir, df, ex_mod, yr, step,plot_dir):
         plt.xlabel('Time (years)')
         plt.ylabel(r'Volume $(m^3)$')
         plt.savefig(os.path.join(plot_dir, 'candidates3_' + str(yr) + '_' + str(gdir.rgi_id) + '.png'), dpi=300)
-
     plt.close()
 
     plt.figure(figsize=(15,14))
