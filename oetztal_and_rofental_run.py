@@ -36,15 +36,18 @@ def objective(model1, model2):
 if __name__ == '__main__':
     cfg.initialize()
 
-    ON_CLUSTER = False
+    ON_CLUSTER = True
 
     # Local paths
     if ON_CLUSTER:
         WORKING_DIR = os.environ.get("S_WORKDIR")
+        rgidf = salem.read_shapefile(os.path.join('/home/users/julia/reconstruction','rgi','oetztal.shp'))
 
     else:
         WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/paper'
         utils.mkdir(WORKING_DIR, reset=False)
+        rgidf = salem.read_shapefile(os.path.join(cfg.PATHS['working_dir'],'rgi','oetztal.shp'))
+
 
     cfg.PATHS['working_dir'] = WORKING_DIR
     cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'], 'plots')
@@ -75,7 +78,7 @@ if __name__ == '__main__':
     cfg.BASENAMES['synthetic_experiment'] = ('synthetic_experiment.pkl', _doc)
 
     # read shapefile (66 glaciers in oetztal, subset from RGIv.61, region 11)
-    rgidf = salem.read_shapefile(os.path.join(cfg.PATHS['working_dir'],'rgi','oetztal.shp'))
+    # rgidf = salem.read_shapefile(os.path.join(cfg.PATHS['working_dir'],'rgi','oetztal.shp'))
     gdirs = workflow.init_glacier_regions(rgidf)
 
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
@@ -83,12 +86,12 @@ if __name__ == '__main__':
     synthetic_experiments_parallel(gdirs)
 
     years = np.arange(1850, 1970, 5)
-    years = [1850]
+    # years = [1850]
 
     rel_error_df = pd.DataFrame()
     abs_error_df = pd.DataFrame()
 
-    for gdir in gdirs:
+    for gdir in gdirs[0:len(gdirs):4]:
         df_list = {}
 
         if os.path.isfile(os.path.join(gdir.dir, 'synthetic_experiment.pkl')):
@@ -148,8 +151,8 @@ if __name__ == '__main__':
             print(gdir.rgi_id,' has no experiment')
 
 
-abs_error_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error.pkl'))
-rel_error_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error.pkl'))
+abs_error_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error0.pkl'))
+rel_error_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error0.pkl'))
 
 
 # median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
