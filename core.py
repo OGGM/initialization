@@ -10,51 +10,67 @@ from multiprocessing import Pool
 from scipy.signal import argrelextrema
 
 # locals
-from oggm import cfg, workflow, tasks, utils
+from oggm import workflow, tasks, utils
 from oggm.core.inversion import mass_conservation_inversion
-from oggm.core.flowline import FluxBasedModel, FileModel
+from oggm.core.flowline import FileModel
 
 
-
-
-def _find_t_eq(df):
+def _find_extrema(ts):
+    """
+    Needed to determine t_stag. Trajectories will be smoothed and
+    extrema will be determined
+    """
     # smooth to find maximum
-    smooth_df = df.rolling(10).mean()
+    smooth_ts = ts.rolling(10).mean()
     # fill nan with 0, to avoid warning from np.greater
-    smooth_df = smooth_df.fillna(0)
+    smooth_ts = smooth_ts.fillna(0)
     # find extrema and take the first one
-    extrema = argrelextrema(smooth_df.values, np.greater, order=20)[0][0]
+    extrema = argrelextrema(smooth_ts.values, np.greater, order=20)[0][0]
     return extrema
 
 
 def _read_file_model(suffix, gdir):
+    """
+    Create FileModel from gdir and suffix
+    """
     rp = gdir.get_filepath('model_run', filesuffix=suffix)
     fmod = FileModel(rp)
     return copy.deepcopy(fmod)
 
 
 def _run_parallel_experiment(gdir):
-    try:
-        # read flowlines from pre-processing
-        fls = gdir.read_pickle('model_flowlines')
-        try:
-            model = tasks.run_random_climate(gdir, nyears=400, bias=0, seed=1, temperature_bias=-1, init_model_fls=fls)
+    """
+    Creates the synthetic experiment for one glacier. model_run_experiment.nc
+    will be saved in working directory.
+    """
 
-        # perhaps temperature_bias was to ambitious, try smaller one
+    try:
+        fls = gdir.read_pickle('model_flowlines')
+        # try to run random climate with temperature bias -1
+        try:
+            model = tasks.run_random_climate(gdir, nyears=400, bias=0, seed=1,
+                                             temperature_bias=-1,
+                                             init_model_fls=fls)
+
+        # perhaps temperature_bias -1 was to ambitious, try larger one
         except:
             model = tasks.run_random_climate(gdir, nyears=400, bias=0, seed=1,
                                              temperature_bias=-0.5,
                                              init_model_fls=fls)
 
-        # construct observed glacier
+        # construct observed glacier, previous glacier will be run forward from
+        # 1850 - 2000 with past climate file
         fls = copy.deepcopy(model.fls)
         tasks.run_from_climate_data(gdir, ys=1850, ye=2000, init_model_fls=fls,
-                                             output_filesuffix='_experiment')
+                                    output_filesuffix='_experiment')
     except:
         print('experiment failed : ' + str(gdir.rgi_id))
 
 
 def _run_to_present(tupel, gdir, ys, ye):
+    """
+    Run glacier candidates forwards.
+    """
     suffix = tupel[0]
     path = gdir.get_filepath('model_run', filesuffix=suffix)
     # does file already exists?
@@ -79,6 +95,9 @@ def _run_to_present(tupel, gdir, ys, ye):
 
 
 def _run_random_parallel(gdir, y0, list):
+    """
+    Paralleize the run_random_task.
+    """
     pool = Pool()
     paths = pool.map(partial(_run_random_task, gdir=gdir, y0=y0), list)
     pool.close()
@@ -97,6 +116,9 @@ def _run_random_parallel(gdir, y0, list):
 
 
 def _run_random_task(tupel, gdir, y0):
+    """
+    Run random model to create lots of possible states
+    """
     seed = tupel[0]
     temp_bias = tupel[1]
     fls = gdir.read_pickle('model_flowlines')
@@ -127,6 +149,9 @@ def _run_random_task(tupel, gdir, y0):
 
 
 def _run_file_model(suffix, gdir, ye):
+    """
+    Read FileModel and run it until ye
+    """
     rp = gdir.get_filepath('model_run', filesuffix=suffix)
     fmod = FileModel(rp)
     fmod.run_until(ye)
@@ -134,14 +159,21 @@ def _run_file_model(suffix, gdir, ye):
 
 
 def find_candidates(gdir, df, ys, ye, n):
+    """
+    Determine glacier candidates and run them to the date of observation
+    :param gdir:    oggm.GlacierDirectories
+    :param df:      pd.DataFrame (volume_m3_ts() from random climate runs)
+    :param ys:      starting year
+    :param ye:      year of observation
+    :param n:       number of candidates
+    :return:
+    """
     indices = []
-
-    # new version candidates --  equdistant
+    # find nearest glacier state for each of the n volume classes (equidistant)
     for val in np.linspace(df.ts_section.min(), df.ts_section.max(), n):
         index = df.iloc[(df['ts_section'] - val).abs().argsort()][:1].index[0]
         if not index in indices:
             indices = np.append(indices, index)
-
     candidates = df.ix[indices]
     candidates = candidates.sort_values(['suffix', 'time'])
     candidates['fls_t0'] = None
@@ -168,10 +200,10 @@ def find_candidates(gdir, df, ys, ye, n):
     pool.join()
 
 
-def find_possible_glaciers(gdir, y0):
+def find_possible_glaciers(gdir, y0, n):
     # find good temp_bias_list
     random_df = find_temp_bias_range(gdir, y0)
-    find_candidates(gdir, df=random_df, ys=y0, ye=2000,n=200)
+    find_candidates(gdir, df=random_df, ys=y0, ye=2000,n=n)
 
 
 def find_temp_bias_range(gdir, y0):
@@ -213,7 +245,7 @@ def find_temp_bias_range(gdir, y0):
             try:
                 rp = gdir.get_filepath('model_run', filesuffix=suffix)
                 fmod = FileModel(rp)
-                t = _find_t_eq(fmod.volume_m3_ts())
+                t = _find_extrema(fmod.volume_m3_ts())
                 if t > t_eq:
                     t_eq = t
                 i = i+1
