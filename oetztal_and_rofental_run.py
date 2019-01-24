@@ -84,7 +84,7 @@ if __name__ == '__main__':
     gdirs = workflow.init_glacier_regions(rgidf)
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
     prepare_for_initializing(gdirs)
-    synthetic_experiments_parallel(gdirs[1:len(gdirs):4])
+    synthetic_experiments_parallel(gdirs[0:len(gdirs):4])
 
     years = np.arange(1850, 1970, 5)
     # years = [1850]
@@ -152,8 +152,8 @@ if __name__ == '__main__':
             print(gdir.rgi_id,' has no experiment')
 
 
-    abs_error_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error1.pkl'))
-    rel_error_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error1.pkl'))
+    abs_error_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error0.pkl'))
+    rel_error_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error0.pkl'))
 
 
 # median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
