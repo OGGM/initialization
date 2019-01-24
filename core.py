@@ -234,7 +234,7 @@ def find_temp_bias_range(gdir, y0):
     return all
 
 
-def get_single_results(gdir,yr,experiment):
+def get_single_results(gdir,yr):
     df = pd.DataFrame()
     prefix = 'model_run'+str(yr)+'_past'
     list = [f.split('model_run')[-1].split('.nc')[0] for f in os.listdir(gdir.dir) if
