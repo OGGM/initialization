@@ -27,8 +27,9 @@ def objective(model1, model2):
     fls2 = model2.fls
     objective=0
     for i in range(len(model1.fls)):
-        objective = objective + np.sum(abs(fls1[i].surface_h-fls2[i].surface_h)**2)+ \
-          np.sum(abs(fls1[i].widths-fls2[i].widths)**2)
+        objective = objective + np.sum(
+            abs(fls1[i].surface_h - fls2[i].surface_h)**2) + \
+                    np.sum(abs(fls1[i].widths - fls2[i].widths)**2)
 
     return objective
 
@@ -82,26 +83,26 @@ if __name__ == '__main__':
     rgidf = rgidf.sort_values('Area', ascending=False)
 
     gdirs = workflow.init_glacier_regions(rgidf)
-    workflow.execute_entity_task(tasks.glacier_masks, gdirs)
-    prepare_for_initializing(gdirs)
-    synthetic_experiments_parallel(gdirs)
+    #workflow.execute_entity_task(tasks.glacier_masks, gdirs)
+    #prepare_for_initializing(gdirs)
+    #synthetic_experiments_parallel(gdirs)
 
-    years = np.arange(1850, 1970, 5)
-    years = [1850]
+    years = np.arange(1850, 1885, 5)
+    #years = [1850]
 
     rel_error_df = pd.DataFrame()
     abs_error_df = pd.DataFrame()
 
 
-    for gdir in gdirs[:1]:
+    for gdir in gdirs:
 
         df_list = {}
 
-        if os.path.isfile(os.path.join(gdir.dir, 'model_run_experiment')):
+        if os.path.isfile(os.path.join(gdir.dir, 'model_run_experiment.nc')):
 
             for yr in years:
                 print(gdir.rgi_id, yr)
-                find_possible_glaciers(gdir,yr)
+                find_possible_glaciers(gdir,yr, 200)
                 path = os.path.join(gdir.dir, 'result' + str(yr) + '.pkl')
 
                 if os.path.isfile(path) and not pd.read_pickle(path).empty:
@@ -116,6 +117,7 @@ if __name__ == '__main__':
                 rp = gdir.get_filepath('model_run', filesuffix='_experiment')
                 ex_mod = FileModel(rp)
 
+
                 df['objective'] = df.model.apply(objective, model2=ex_mod)
                 df.to_pickle(path)
 
@@ -123,7 +125,6 @@ if __name__ == '__main__':
                 df['temp_bias'] = df['temp_bias'].apply(lambda x: float(x))
 
                 df_list[str(yr)]=df
-
                 min_mod = deepcopy(df.loc[df.objective.idxmin(), 'model'])
                 if yr==1850:
                     abs_error_df.loc[gdir.rgi_id, '1850_min'] = ex_mod.volume_km3_ts()[yr] - min_mod.volume_km3_ts()[yr]
@@ -133,7 +134,7 @@ if __name__ == '__main__':
                 try:
                     plot_experiment(gdir, ex_mod, yr, cfg.PATHS['plot_dir'])
                     plot_candidates(gdir, df, ex_mod, yr, 'step3', cfg.PATHS['plot_dir'])
-                    plot_col_fitness(gdir, df, ex_mod, min_mod, yr, cfg.PATHS['plot_dir'])
+                    plot_col_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
                     m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
 
                 except:

@@ -67,7 +67,7 @@ def plot_experiment(gdir,ex_mod,ys, plot_dir):
     if gdir.name != '':
         ax1.set_title(gdir.rgi_id+':'+gdir.name,fontsize=30)
     else:
-        ax1.set_title(gdir.rgi_id+': Guslarferner', fontsize=30)
+        ax1.set_title(gdir.rgi_id, fontsize=30)
 
     # plot experiments
     ex_mod = deepcopy(ex_mod)
@@ -630,9 +630,9 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
 
 
     ax3.set_xlim(xmin=1847, xmax=2003)
-    #plt.show()
     plt.savefig(os.path.join(plot_dir,'surface_'+str(ys)+'_'+gdir.rgi_id+'.pdf'), dpi=300)
     plt.savefig(os.path.join(plot_dir, 'surface_' + str(ys) + '_' + gdir.rgi_id + '.png'), dpi=300)
+
     plt.close()
 
 
@@ -770,7 +770,6 @@ def plot_median(gdir,df,ex_mod,ys, plot_dir):
 
     df = df.sort_values('objective', ascending=False)
     df = df[df.objective<100]
-
     min_id = df.volume.idxmin()
     max_id = df.volume.idxmax()
 
@@ -926,6 +925,7 @@ def plot_median_vs_min(list,plot_dir):
     plt.savefig(os.path.join(plot_dir, 'boxplot.pdf'), dpi=300)
     plt.show()
 
+
 def _adjacent_values(vals, q1, q3):
     upper_adjacent_value = q3 + (q3 - q1) * 1.5
     upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
@@ -933,6 +933,7 @@ def _adjacent_values(vals, q1, q3):
     lower_adjacent_value = q1 - (q3 - q1) * 1.5
     lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
     return lower_adjacent_value, upper_adjacent_value
+
 
 def plot_abs_error_t0(list,ylabel,plot_dir):
 
