@@ -54,7 +54,7 @@ class HandlerColorLineCollection(HandlerLineCollection):
         lc.set_linewidth(artist.get_linewidth())
         return [lc]
 
-def plot_experiment(gdir,df,ex_mod,ys, plot_dir):
+def plot_experiment(gdir,ex_mod,ys, plot_dir):
     plot_dir = os.path.join(plot_dir,'00_experiment')
     utils.mkdir(plot_dir)
 
@@ -103,7 +103,7 @@ def plot_experiment(gdir,df,ex_mod,ys, plot_dir):
     plt.close()
 
 def plot_candidates(gdir, df, ex_mod, yr, step,plot_dir):
-    plot_dir = os.path.join(plot_dir,'06_candidates',gdir.rgi_id)
+    plot_dir = os.path.join(plot_dir,'06_candidates')
     utils.mkdir(plot_dir)
     fig, ax = plt.subplots(figsize=(10,10))
     for file in os.listdir(gdir.dir):
@@ -520,7 +520,7 @@ def plot_fitness_over_time3(gdir, df_list, ex_mod, plot_dir,ax,fig):
 
 def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
 
-    plot_dir = os.path.join(plot_dir,'03_surface_by_fitness', gdir.rgi_id)
+    plot_dir = os.path.join(plot_dir,'03_surface_by_fitness')
     utils.mkdir(plot_dir)
     x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * ex_mod.fls[-1].map_dx
     fig = plt.figure(figsize=(25,18))
@@ -751,7 +751,7 @@ def plot_col_fitness2(gdir,df,ex_mod,ys, plot_dir):
     plt.show()
 
 def plot_median(gdir,df,ex_mod,ys, plot_dir):
-    plot_dir = os.path.join(plot_dir,'04_median', gdir.rgi_id)
+    plot_dir = os.path.join(plot_dir,'04_median')
     utils.mkdir(plot_dir)
     x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * ex_mod.fls[
         -1].map_dx
