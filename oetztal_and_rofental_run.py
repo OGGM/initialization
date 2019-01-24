@@ -73,17 +73,18 @@ if __name__ == '__main__':
     cfg.PARAMS['run_mb_calibration'] = True
     cfg.PARAMS['optimize_inversion_params'] = False
 
+
     # add to BASENAMES
     _doc = 'contains observed and searched glacier from synthetic experiment to find intial state'
     cfg.BASENAMES['synthetic_experiment'] = ('synthetic_experiment.pkl', _doc)
 
-    # read shapefile (66 glaciers in oetztal, subset from RGIv.61, region 11)
-    # rgidf = salem.read_shapefile(os.path.join(cfg.PATHS['working_dir'],'rgi','oetztal.shp'))
-    gdirs = workflow.init_glacier_regions(rgidf)
+    # sort for efficient using
+    rgidf = rgidf.sort_values('Area', ascending=False)
 
+    gdirs = workflow.init_glacier_regions(rgidf)
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
     prepare_for_initializing(gdirs)
-    synthetic_experiments_parallel(gdirs)
+    synthetic_experiments_parallel(gdirs[1:len(gdirs):4])
 
     years = np.arange(1850, 1970, 5)
     # years = [1850]
@@ -91,27 +92,27 @@ if __name__ == '__main__':
     rel_error_df = pd.DataFrame()
     abs_error_df = pd.DataFrame()
 
-    for gdir in gdirs[0:len(gdirs):4]:
+    for gdir in gdirs:
+
         df_list = {}
 
-        if os.path.isfile(os.path.join(gdir.dir, 'synthetic_experiment.pkl')):
+        if os.path.isfile(os.path.join(gdir.dir, 'model_run_experiment.nc')):
 
             for yr in years:
                 print(gdir.rgi_id, yr)
-                find_possible_glaciers(gdir,gdir.read_pickle('synthetic_experiment'),yr)
+                find_possible_glaciers(gdir,yr)
                 path = os.path.join(gdir.dir, 'result' + str(yr) + '.pkl')
 
                 if os.path.isfile(path) and not pd.read_pickle(path).empty:
                     df = pd.read_pickle(path)
 
                 else:
-                    df = get_single_results(gdir, yr, gdir.read_pickle(
-                        'synthetic_experiment'))
+                    df = get_single_results(gdir, yr)
                     df.to_pickle(path)
                 if df.empty:
                     continue
 
-                rp = gdir.get_filepath('model_run', filesuffix='experiment')
+                rp = gdir.get_filepath('model_run', filesuffix='_experiment')
                 ex_mod = FileModel(rp)
 
                 df['objective'] = df.model.apply(objective, model2=ex_mod)
@@ -128,10 +129,10 @@ if __name__ == '__main__':
                     rel_error_df.loc[gdir.rgi_id, '1850_min'] = np.log(min_mod.volume_km3_ts()[yr] / ex_mod.volume_km3_ts()[yr])
                     plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
 
-                plot_experiment(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-                plot_candidates(gdir, df, ex_mod, yr, 'step3',cfg.PATHS['plot_dir'])
-                plot_col_fitness(gdir, df, ex_mod, min_mod, yr, cfg.PATHS['plot_dir'])
                 try:
+                    plot_experiment(gdir, ex_mod, yr, cfg.PATHS['plot_dir'])
+                    plot_candidates(gdir, df, ex_mod, yr, 'step3', cfg.PATHS['plot_dir'])
+                    plot_col_fitness(gdir, df, ex_mod, min_mod, yr, cfg.PATHS['plot_dir'])
                     m_mod = plot_median(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
 
                 except:
@@ -151,8 +152,8 @@ if __name__ == '__main__':
             print(gdir.rgi_id,' has no experiment')
 
 
-abs_error_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error0.pkl'))
-rel_error_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error0.pkl'))
+    abs_error_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error1.pkl'))
+    rel_error_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error1.pkl'))
 
 
 # median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))

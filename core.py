@@ -12,9 +12,9 @@ from scipy.signal import argrelextrema
 # locals
 from oggm import cfg, workflow, tasks, utils
 from oggm.core.inversion import mass_conservation_inversion
-from oggm.core.massbalance import RandomMassBalance
 from oggm.core.flowline import FluxBasedModel, FileModel
-FlowlineModel = partial(FluxBasedModel, inplace=False)
+
+
 
 
 def _find_t_eq(df):
@@ -38,38 +38,18 @@ def _run_parallel_experiment(gdir):
         # read flowlines from pre-processing
         fls = gdir.read_pickle('model_flowlines')
         try:
-            # construct searched glacier
-            random_climate1 = RandomMassBalance(gdir, y0=1850, bias=0,
-                                                seed=[1])
-            random_climate1.temp_bias = -1
-            model = FluxBasedModel(fls, mb_model=random_climate1, glen_a=cfg.A,
-                                   y0=0)
-            model.run_until(400)
-            y_t0 = copy.deepcopy(model)
+            model = tasks.run_random_climate(gdir, nyears=400, bias=0, seed=1, temperature_bias=-1, init_model_fls=fls)
 
-        # try higher temperature_bias
+        # perhaps temperature_bias was to ambitious, try smaller one
         except:
-            # construct searched glacier
-            random_climate1 = RandomMassBalance(gdir, y0=1850, bias=0,
-                                                seed=[1])
-            random_climate1.temp_bias = -0.5
-            model = FluxBasedModel(fls, mb_model=random_climate1,
-                                   glen_a=cfg.A, y0=0)
-            model.run_until(400)
-            y_t0 = copy.deepcopy(model)
+            model = tasks.run_random_climate(gdir, nyears=400, bias=0, seed=1,
+                                             temperature_bias=-0.5,
+                                             init_model_fls=fls)
 
         # construct observed glacier
         fls = copy.deepcopy(model.fls)
-        model2 = tasks.run_from_climate_data(gdir, ys=1850, ye=2000,
-                                             init_model_fls=fls,
-                                             output_filesuffix='experiment')
-        print(model2.yr,model2.volume_m3)
-        y_t = copy.deepcopy(model2)
-
-        # save output in gdir_dir
-        experiment = {'y_t0': y_t0, 'y_t': y_t,
-                      'climate': random_climate1}
-        gdir.write_pickle(experiment, 'synthetic_experiment')
+        tasks.run_from_climate_data(gdir, ys=1850, ye=2000, init_model_fls=fls,
+                                             output_filesuffix='_experiment')
     except:
         print('experiment failed : ' + str(gdir.rgi_id))
 
@@ -80,10 +60,10 @@ def _run_to_present(tupel, gdir, ys, ye):
     # does file already exists?
     if not os.path.exists(path):
         try:
-            model = tasks.run_from_climate_data(gdir, ys=ys, ye=ye,
-                                                output_filesuffix=suffix,
-                                                init_model_fls=copy.deepcopy(
-                                                    tupel[1].fls))
+            tasks.run_from_climate_data(gdir, ys=ys, ye=ye,
+                                        output_filesuffix=suffix,
+                                        init_model_fls=copy.deepcopy(
+                                        tupel[1].fls))
             return suffix
         # oggm failed --> probaly "glacier exeeds boundaries"
         except:
@@ -153,7 +133,7 @@ def _run_file_model(suffix, gdir, ye):
     return copy.deepcopy(fmod)
 
 
-def find_candidates(gdir, experiment, df, ys, ye, n):
+def find_candidates(gdir, df, ys, ye, n):
     indices = []
 
     # new version candidates --  equdistant
@@ -162,14 +142,6 @@ def find_candidates(gdir, experiment, df, ys, ye, n):
         if not index in indices:
             indices = np.append(indices, index)
 
-    '''
-    # old version --quantiles
-    for q in np.linspace(0, 1, n):
-        # indices of all to test
-        greater_q = df['ts_section'] >= (df['ts_section'].quantile(q))
-        index = df[greater_q]['ts_section'].idxmin()
-        indices = np.append(indices, int(index))
-    '''
     candidates = df.ix[indices]
     candidates = candidates.sort_values(['suffix', 'time'])
     candidates['fls_t0'] = None
@@ -196,11 +168,10 @@ def find_candidates(gdir, experiment, df, ys, ye, n):
     pool.join()
 
 
-def find_possible_glaciers(gdir, experiment, y0):
+def find_possible_glaciers(gdir, y0):
     # find good temp_bias_list
     random_df = find_temp_bias_range(gdir, y0)
-    find_candidates(gdir, experiment, df=random_df, ys=y0, ye=2000,
-                              n=200)
+    find_candidates(gdir, df=random_df, ys=y0, ye=2000,n=200)
 
 
 def find_temp_bias_range(gdir, y0):
@@ -274,22 +245,20 @@ def get_single_results(gdir,yr,experiment):
             fmod = FileModel(rp)
             fmod_t = copy.deepcopy(fmod)
             fmod_t.run_until(2000)
-            obj = objective_value(fmod_t, experiment['y_t'])
+
+            # read experiment
+            ep = gdir.get_filepath('model_run',filesuffix='_experiment')
+            emod = FileModel(ep)
+            emod_t = copy.deepcopy(emod)
+            emod_t.run_until(2000)
+
+            obj = objective_value(fmod_t,emod_t)
             #fmod.reset_y0(yr)
             df = df.append({'model':copy.deepcopy(fmod),'objective':obj,'temp_bias':f.split('_')[-2],'time':f.split('_')[-1]},ignore_index=True)
         except:
             pass
     return df
 
-
-def objective_value2(model1, model2):
-    """
-    calculates the objective value (difference in geometry)
-    :param model1: oggm.flowline.FluxBasedModel
-    :param model2: oggm.flowline.FluxBasedModel
-    :return:       float
-    """
-    return abs(model1.area_m2-model2.area_m2)
 
 def objective_value(model1, model2):
     """
@@ -337,10 +306,11 @@ def prepare_for_initializing(gdirs):
     workflow.climate_tasks(gdirs)
     workflow.execute_entity_task(tasks.prepare_for_inversion, gdirs)
 
-    for gdir in gdirs:
-        mass_conservation_inversion(gdir)
+    #for gdir in gdirs:
+    #    mass_conservation_inversion(gdir)
 
-    workflow.execute_entity_task(tasks.volume_inversion, gdirs)
+    workflow.execute_entity_task(mass_conservation_inversion, gdirs)
+    #workflow.execute_entity_task(tasks.volume_inversion, gdirs)
     workflow.execute_entity_task(tasks.filter_inversion_output, gdirs)
     workflow.execute_entity_task(tasks.init_present_time_glacier, gdirs)
 
