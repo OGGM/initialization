@@ -210,9 +210,9 @@ def find_temp_bias_range(gdir, y0):
     """
     creates a pandas.DataFrame() with ALL created states. A subset of them will
     be tested later
-    :param gdir:oggm.GlacierDirectories
-    :param y0:  int year of serached glaciers
-    :return:    pandas.DataFrame()
+    :param gdir:    oggm.GlacierDirectories
+    :param y0:      int year of searched glaciers
+    :return:        pandas.DataFrame()
     """
     t_eq = 0
 
@@ -267,6 +267,14 @@ def find_temp_bias_range(gdir, y0):
 
 
 def get_single_results(gdir,yr):
+    """
+    Creates a pd.DataFrame() containing all tested glaciers candidates in year
+    yr. Read all "model_run+str(yr)+_past*.nc" files in gdir.dir
+    :param gdir:    oggm.GlacierDirectory
+    :param yr:      int, year of seachred glacier
+    :return:
+    """
+
     df = pd.DataFrame()
     prefix = 'model_run'+str(yr)+'_past'
     list = [f.split('model_run')[-1].split('.nc')[0] for f in os.listdir(gdir.dir) if
