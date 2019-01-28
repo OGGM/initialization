@@ -86,9 +86,10 @@ if __name__ == '__main__':
 
     workflow.execute_entity_task(tasks.glacier_masks, gdirs)
     prepare_for_initializing(gdirs)
-    synthetic_experiments_parallel(gdirs[0:len(gdirs):4])
+    i = int(os.environ.get('I'))-1
+    synthetic_experiments_parallel(gdirs[i:len(gdirs):20])
 
-    years = np.arange(1850, 1885, 5)
+    years = np.arange(1850, 1970, 5)
     #years = [1850]
 
     rel_error_df = pd.DataFrame()
@@ -119,7 +120,7 @@ if __name__ == '__main__':
 
 
                 df['objective'] = df.model.apply(objective, model2=ex_mod)
-                df.to_pickle(path)
+                df.to_pickle(path, compression='gzip')
 
                 df['volume'] = df['model'].apply(lambda x: x.volume_m3)
                 df['temp_bias'] = df['temp_bias'].apply(lambda x: float(x))
@@ -129,8 +130,10 @@ if __name__ == '__main__':
                 if yr==1850:
                     abs_error_df.loc[gdir.rgi_id, '1850_min'] = ex_mod.volume_km3_ts()[yr] - min_mod.volume_km3_ts()[yr]
                     rel_error_df.loc[gdir.rgi_id, '1850_min'] = np.log(min_mod.volume_km3_ts()[yr] / ex_mod.volume_km3_ts()[yr])
-                    plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-
+                    try:
+                        plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                    except:
+                        pass
                 try:
                     plot_experiment(gdir, ex_mod, yr, cfg.PATHS['plot_dir'])
                     plot_candidates(gdir, df, ex_mod, yr, 'step3', cfg.PATHS['plot_dir'])
@@ -154,8 +157,8 @@ if __name__ == '__main__':
             print(gdir.rgi_id,' has no experiment')
 
 
-    abs_error_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error0.pkl'))
-    rel_error_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error0.pkl'))
+    abs_error_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error'+str(i-1)+'.pkl'))
+    rel_error_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error0'+str(i-1)+'.pkl'))
 
 
 # median_df = pd.read_pickle(os.path.join(WORKING_DIR, 'median.pkl'))
