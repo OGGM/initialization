@@ -411,6 +411,10 @@ def plot_fitness_over_time2(gdir, df_list, ex_mod, plot_dir):
 
     volumes = np.linspace(df_list['1850'].volume.min(),
                           df_list['1850'].volume.max(), 100)
+    # width of the patches
+    yrs = [int(yr) for yr in list(df_list.keys())]
+    yrs.sort()
+    w = yrs[1] - yrs[0]
 
     for year, df in df_list.items():
         color = []
@@ -439,12 +443,15 @@ def plot_fitness_over_time2(gdir, df_list, ex_mod, plot_dir):
             else:
                 color = cmap(norm(c))
             ax.add_patch(
-                Rectangle((y - 2.5, x), 5, volumes[1] - volumes[0],
+                Rectangle((y-(w/2) , x), w, volumes[1] - volumes[0],
                           color=color))
+            #ax.add_patch(
+            #    Rectangle((y - 2.5, x), 5, volumes[1] - volumes[0],
+            #              color=color))
 
     # add experiment in plot
     ex_mod.volume_m3_ts().plot(ax=ax, linestyle=':', color='red')
-    ax.set_xlim(1847.5, 1967.5)
+    ax.set_xlim(yrs[0]-(w/2), yrs[-1]+(w/2))
     ax.set_ylim(volumes[0], volumes[-1])
     plt.title(gdir.rgi_id + ': ' + gdir.name, fontsize=25)
     plt.ylabel(r'Volume ($m^3$)', fontsize=25)
@@ -456,9 +463,9 @@ def plot_fitness_over_time2(gdir, df_list, ex_mod, plot_dir):
     cbar = fig.colorbar(sm, cax=cax, **kw)
     cbar.ax.tick_params(labelsize=25)
     cbar.set_label('Fitness value', fontsize=25)
-    plt.savefig(os.path.join(plot_dir, 'starting' '_' + gdir.rgi_id + '.png'))
-    plt.close()
-    #plt.show()
+    #plt.savefig(os.path.join(plot_dir, 'starting' '_' + gdir.rgi_id + '.png'))
+    #plt.close()
+    plt.show()
 
 
 def plot_fitness_over_time3(gdir, df_list, ex_mod, plot_dir,ax,fig):

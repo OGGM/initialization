@@ -215,7 +215,7 @@ def find_temp_bias_range(gdir, y0):
     :return:        pandas.DataFrame()
     """
     t_eq = 0
-
+    '''
     # try range (2,-2) first
     bias_list = [b.round(3) for b in np.arange(-2, 2, 0.05)]
     list = [(i**2, b) for i, b in enumerate(bias_list)]
@@ -227,6 +227,17 @@ def find_temp_bias_range(gdir, y0):
         list = [((i+n+1)**2, b.round(3)) for i, b in enumerate(np.arange(temp_b-1, temp_b-0.05, 0.05))]
         random_run_list = random_run_list.append(_run_random_parallel(gdir, y0, list), ignore_index=True)
         temp_b = temp_b-1
+    '''
+    # try range (2,-3) first  --> 100 runs
+    bias_list = [b.round(3) for b in np.arange(-3, 2, 0.05)]
+    list = [(i ** 2, b) for i, b in enumerate(bias_list)]
+    random_run_list = _run_random_parallel(gdir, y0, list)
+
+    # if temp bias = -3 does not create a glacier that exceeds boundary, we test further up to -5
+    if random_run_list['temp_bias'].min() == -3:
+        bias_list = [b.round(3) for b in np.arange(-5, -3, 0.05)]
+        list = [(i ** 2, b) for i, b in enumerate(bias_list)]
+        random_run_list = _run_random_parallel(gdir, y0, list)
 
 
     # check for zero glacier
