@@ -1,5 +1,7 @@
 import os
 import copy
+import shutil
+import tarfile
 from functools import partial
 
 # External libs
@@ -27,15 +29,6 @@ def _find_extrema(ts):
     # find extrema and take the first one
     extrema = argrelextrema(smooth_ts.values, np.greater, order=20)[0][0]
     return extrema
-
-
-def _read_file_model(suffix, gdir):
-    """
-    Create FileModel from gdir and suffix
-    """
-    rp = gdir.get_filepath('model_run', filesuffix=suffix)
-    fmod = FileModel(rp)
-    return copy.deepcopy(fmod)
 
 
 def _run_parallel_experiment(gdir):
@@ -72,7 +65,8 @@ def _run_to_present(tupel, gdir, ys, ye):
     Run glacier candidates forwards.
     """
     suffix = tupel[0]
-    path = gdir.get_filepath('model_run', filesuffix=suffix)
+    #path = gdir.get_filepath('model_run', filesuffix=suffix)
+    path = os.path.join(gdir.dir, str(ys), 'model_run' + suffix + '.nc')
     # does file already exists?
     if not os.path.exists(path):
         try:
@@ -95,8 +89,9 @@ def _run_to_present(tupel, gdir, ys, ye):
 
 
 def _run_random_parallel(gdir, y0, list):
+
     """
-    Paralleize the run_random_task.
+    Parallelize the run_random_task.
     """
     pool = Pool()
     paths = pool.map(partial(_run_random_task, gdir=gdir, y0=y0), list)
@@ -123,12 +118,12 @@ def _run_random_task(tupel, gdir, y0):
     temp_bias = tupel[1]
     fls = gdir.read_pickle('model_flowlines')
     suffix = str(y0) + '_random_'+str(seed) + '_' + str(temp_bias)
-
-    # test if file already exist:
-    path = gdir.get_filepath('model_run', filesuffix=suffix)
+    #path = gdir.get_filepath('model_run', filesuffix=suffix)
+    path = os.path.join(gdir.dir, str(y0),'model_run'+suffix+'.nc')
 
     # does file already exists?
     if not os.path.exists(path):
+
         try:
             tasks.run_random_climate(gdir, nyears=400, y0=y0, bias=0,
                                      seed=seed, temperature_bias=temp_bias,
@@ -158,7 +153,7 @@ def _run_file_model(suffix, gdir, ye):
     return copy.deepcopy(fmod)
 
 
-def find_candidates(gdir, df, ys, ye, n):
+def identification(gdir, list, ys, ye, n):
     """
     Determine glacier candidates and run them to the date of observation
     :param gdir:    oggm.GlacierDirectories
@@ -168,6 +163,39 @@ def find_candidates(gdir, df, ys, ye, n):
     :param n:       number of candidates
     :return:
     """
+    i = 0
+    t_stag = 0
+    # find t_stag
+    for suffix in list['suffix'].values:
+        if i < 10:
+            try:
+                rp = gdir.get_filepath('model_run', filesuffix=suffix)
+                if not os.path.exists(rp):
+                    rp = os.path.join(gdir.dir,str(ys),
+                                      'model_run'+suffix+'.nc')
+                fmod = FileModel(rp)
+                t = _find_extrema(fmod.volume_m3_ts())
+                if t > t_stag:
+                    t_stag = t
+                i = i+1
+            except:
+                pass
+
+    df = pd.DataFrame()
+    for suffix in list['suffix']:
+        try:
+            rp = gdir.get_filepath('model_run', filesuffix=suffix)
+            if not os.path.exists(rp):
+                rp = os.path.join(gdir.dir, str(ys),
+                                  'model_run' + suffix + '.nc')
+            fmod = FileModel(rp)
+            v = pd.DataFrame(fmod.volume_m3_ts()).reset_index()
+            v = v[v['time'] >= t_stag]
+            v = v.assign(suffix=lambda x: suffix)
+            df = df.append(v, ignore_index=True)
+        except:
+            pass
+
     indices = []
     # find nearest glacier state for each of the n volume classes (equidistant)
     for val in np.linspace(df.ts_section.min(), df.ts_section.max(), n):
@@ -179,6 +207,8 @@ def find_candidates(gdir, df, ys, ye, n):
     candidates['fls_t0'] = None
     for suffix in candidates['suffix'].unique():
         rp = gdir.get_filepath('model_run', filesuffix=suffix)
+        if not os.path.exists(rp):
+            rp = os.path.join(gdir.dir, str(ys), 'model_run' + suffix + '.nc')
         fmod = FileModel(rp)
         for i, t in candidates[candidates['suffix'] == suffix]['time'].iteritems():
             fmod.run_until(t)
@@ -191,43 +221,60 @@ def find_candidates(gdir, df, ys, ye, n):
         suffix = str(ys) + '_past' + s + '_'+str(int(candidates.loc[int(i), 'time']))
         fls = candidates.loc[int(i), 'random_model_t0']
         fls_list.append([suffix, fls])
-
-    # run candidates until present
-    pool = Pool()
-    path_list = pool.map(partial(_run_to_present, gdir=gdir, ys=ys,
-                                     ye=2000), fls_list)
-    pool.close()
-    pool.join()
+    return fls_list
 
 
-def find_possible_glaciers(gdir, y0, n):
-    # find good temp_bias_list
-    random_df = find_temp_bias_range(gdir, y0)
-    find_candidates(gdir, df=random_df, ys=y0, ye=2000,n=n)
+def find_possible_glaciers(gdir, y0, ye, n):
+
+    path = os.path.join(gdir.dir, 'result' + str(y0) + '.pkl')
+    # if results are already there and dimensions are the same, don't run it again
+    if os.path.isfile(path):
+        results = pd.read_pickle(path, compression='gzip')
+        if len(results) == n:
+            return results
 
 
-def find_temp_bias_range(gdir, y0):
+    # 1. Generation of possible glacier states
+    #    - Run random climate over 400 years with different temperature biases
+    random_list = generation(gdir, y0)
+
+    # 2. Identification of glacier candidates
+    #    - Determine t_stag(begin of stagnation period)
+    #    - Classification by volume (n equidistantly distributed classes)
+    #    - Select one candidate by class
+    #
+    candidate_list = identification(gdir, random_list, ys=y0, ye=ye, n=n)
+
+    # 3. Evaluation
+    #    - Run each candidate forward from y0 to ye
+    #    - Evaluate candidates based on the fitnessfunction
+    #    - Save all models in pd.DataFrame and write pickle
+    #    - copy all model_run files to tarfile
+    results = evaluation(gdir, candidate_list, y0, ye)
+
+
+    # move all model_run* files from year y0 to a new directory --> avoids
+    # that thousand of thousands files are created in gdir.dir
+    utils.mkdir(os.path.join(gdir.dir,str(y0)),reset=False)
+    for file in os.listdir(gdir.dir):
+        if file.startswith('model_run' + (str(y0))):
+            os.rename(os.path.join(gdir.dir,file),
+                      os.path.join(gdir.dir,str(y0),file))
+        elif file.startswith('model_diagnostics' + (str(y0))):
+            os.remove(os.path.join(gdir.dir, file))
+
+    return results
+
+def generation(gdir, y0):
+
     """
     creates a pandas.DataFrame() with ALL created states. A subset of them will
     be tested later
     :param gdir:    oggm.GlacierDirectories
     :param y0:      int year of searched glaciers
-    :return:        pandas.DataFrame()
+    :return:        array
     """
-    t_eq = 0
-    '''
-    # try range (2,-2) first
-    bias_list = [b.round(3) for b in np.arange(-2, 2, 0.05)]
-    list = [(i**2, b) for i, b in enumerate(bias_list)]
-    random_run_list = _run_random_parallel(gdir, y0, list)
-    temp_b = -2
-    while random_run_list['temp_bias'].min() == temp_b and temp_b >= -4:
-        print(temp_b)
-        n = len(random_run_list)
-        list = [((i+n+1)**2, b.round(3)) for i, b in enumerate(np.arange(temp_b-1, temp_b-0.05, 0.05))]
-        random_run_list = random_run_list.append(_run_random_parallel(gdir, y0, list), ignore_index=True)
-        temp_b = temp_b-1
-    '''
+    t_stag = 0
     # try range (2,-3) first  --> 100 runs
     bias_list = [b.round(3) for b in np.arange(-3, 2, 0.05)]
     list = [(i ** 2, b) for i, b in enumerate(bias_list)]
@@ -243,98 +290,106 @@ def find_temp_bias_range(gdir, y0):
 
     # check for zero glacier
     max_bias = random_run_list['temp_bias'].idxmax()
-    p = gdir.get_filepath('model_run', filesuffix=random_run_list.loc[max_bias, 'suffix'])
+    max_suffix = random_run_list.loc[max_bias, 'suffix']
+
+    p = gdir.get_filepath('model_run',filesuffix=max_suffix)
+    if not os.path.exists(p):
+        p = os.path.join(gdir.dir, str(y0), 'model_run' + max_suffix + '.nc')
     fmod = FileModel(p)
 
     if not fmod.volume_m3_ts().min() == 0:
         n = len(random_run_list)
         list = [((i + n + 1) ** 2, b.round(3)) for i, b in enumerate(np.arange(2.05, 3, 0.05))]
         random_run_list = random_run_list.append(_run_random_parallel(gdir, y0, list), ignore_index=True)
-    i = 0
-    # find t_eq
-    for suffix in random_run_list['suffix'].values:
-        if i < 10:
-            try:
-                rp = gdir.get_filepath('model_run', filesuffix=suffix)
-                fmod = FileModel(rp)
-                t = _find_extrema(fmod.volume_m3_ts())
-                if t > t_eq:
-                    t_eq = t
-                i = i+1
-            except:
-                pass
-
-    all = pd.DataFrame()
-    for suffix in random_run_list['suffix']:
-        try:
-            rp = gdir.get_filepath('model_run', filesuffix=suffix)
-            fmod = FileModel(rp)
-            v = pd.DataFrame(fmod.volume_m3_ts()).reset_index()
-            v = v[v['time'] >= t_eq]
-            v = v.assign(suffix=lambda x: suffix)
-            all = all.append(v, ignore_index=True)
-        except:
-            pass
-    return all
+    random_run_list = random_run_list.sort_values(by='temp_bias')
+    return random_run_list
 
 
-def get_single_results(gdir,yr):
+def evaluation(gdir, fls_list, y0, ye):
     """
     Creates a pd.DataFrame() containing all tested glaciers candidates in year
     yr. Read all "model_run+str(yr)+_past*.nc" files in gdir.dir
-    :param gdir:    oggm.GlacierDirectory
-    :param yr:      int, year of seachred glacier
+    :param gdir:        oggm.GlacierDirectory
+    :param fls_list:    array with tupels [suffix, fls]
+    :param y0:          int, year of searched glacier
+    :param ye:          int, year of observation
     :return:
     """
 
+    # run candidates until present
+    pool = Pool()
+    suffix_list = pool.map(partial(_run_to_present, gdir=gdir, ys=y0,
+                                 ye=ye), fls_list)
+    pool.close()
+    pool.join()
+
+
     df = pd.DataFrame()
-    prefix = 'model_run'+str(yr)+'_past'
-    list = [f.split('model_run')[-1].split('.nc')[0] for f in os.listdir(gdir.dir) if
-            f.startswith(prefix)]
-    for f in list:
+    prefix = 'model_run'+str(y0)+'_past'
+    '''
+    list = [f.split('model_run')[-1].split('.nc')[0] for f in
+            os.listdir(gdir.dir) if f.startswith(prefix)]
+    if len(list)==0:
+        list = [f.split('model_run')[-1].split('.nc')[0] for f in
+                os.listdir(os.path.join(gdir.dir,str(y0))) if f.startswith(prefix)]
+    print(list)
+    '''
+    # read experiment
+    ep = gdir.get_filepath('model_run', filesuffix='_experiment')
+    emod = FileModel(ep)
+    emod_t = copy.deepcopy(emod)
+    emod_t.run_until(ye)
+
+    for f in suffix_list:
+
         try:
+            # read past climate model runs and calculate objective
             rp = gdir.get_filepath('model_run',filesuffix=f)
+            if not os.path.exists(rp):
+                rp = os.path.join(gdir.dir, str(y0), 'model_run' + f + '.nc')
+
             fmod = FileModel(rp)
             fmod_t = copy.deepcopy(fmod)
-            fmod_t.run_until(2000)
-
-            # read experiment
-            ep = gdir.get_filepath('model_run',filesuffix='_experiment')
-            emod = FileModel(ep)
-            emod_t = copy.deepcopy(emod)
-            emod_t.run_until(2000)
-
-            obj = objective_value(fmod_t,emod_t)
-            #fmod.reset_y0(yr)
-            df = df.append({'model':copy.deepcopy(fmod),'objective':obj,'temp_bias':f.split('_')[-2],'time':f.split('_')[-1]},ignore_index=True)
+            fmod_t.run_until(ye)
+            obj = fitness_value(fmod_t,emod_t,ye)
+            df = df.append({'model':copy.deepcopy(fmod),'objective':obj,
+                            'temp_bias':float(f.split('_')[-2]),
+                            'time':f.split('_')[-1]},ignore_index=True)
         except:
             pass
+
+    # save df with result models
+    path = os.path.join(gdir.dir, 'result' + str(y0) + '.pkl')
+    df.to_pickle(path, compression='gzip')
+
     return df
 
 
-def objective_value(model1, model2):
+def fitness_value(model1, model2, ye):
     """
     calculates the objective value (difference in geometry)
     :param model1: oggm.flowline.FluxBasedModel
     :param model2: oggm.flowline.FluxBasedModel
+    :param ye:     int, year of observation
     :return:       float
     """
-
     model1 = copy.deepcopy(model1)
     model2 = copy.deepcopy(model2)
-    model2.run_until(2000)
-    model1.run_until(2000)
+    model2.run_until(ye)
+    model1.run_until(ye)
 
     fls1 = model1.fls
     fls2 = model2.fls
     objective=0
     for i in range(len(model1.fls)):
-        objective = objective + np.sum(abs(fls1[i].surface_h-fls2[i].surface_h)**2)+ \
-          np.sum(abs(fls1[i].widths-fls2[i].widths)**2)
+        objective = objective + np.sum(
+            abs(fls1[i].surface_h - fls2[i].surface_h)**2) + \
+                    np.sum(abs(fls1[i].widths - fls2[i].widths)**2)
+
     return objective
 
 
-def prepare_for_initializing(gdirs):
+def preprocessing(gdirs):
     """
     oggm workflow for preparing initializing
     :param gdirs: list of oggm.GlacierDirectories
