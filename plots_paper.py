@@ -57,17 +57,16 @@ class HandlerColorLineCollection(HandlerLineCollection):
 def plot_experiment(gdir,ex_mod,ys, plot_dir):
     plot_dir = os.path.join(plot_dir,'00_experiment')
     utils.mkdir(plot_dir)
-
     x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * ex_mod.fls[-1].map_dx
-    fig = plt.figure(figsize=(15,14))
+    #fig = plt.figure(figsize=(15,14))
     grid = plt.GridSpec(2, 1, hspace=0.2, wspace=0.2)
     ax1 = plt.subplot(grid[0, 0])
     ax2 = plt.subplot(grid[1,0],sharex=ax1)
 
     if gdir.name != '':
-        ax1.set_title(gdir.rgi_id+':'+gdir.name,fontsize=30)
+        ax1.set_title(gdir.rgi_id+':'+gdir.name)
     else:
-        ax1.set_title(gdir.rgi_id, fontsize=30)
+        ax1.set_title(gdir.rgi_id)
 
     # plot experiments
     ex_mod = deepcopy(ex_mod)
@@ -90,26 +89,25 @@ def plot_experiment(gdir,ex_mod,ys, plot_dir):
     ax1.legend(loc=1)
     ax2.legend(loc=1)
 
-    ax1.set_ylabel('Altitude (m)', fontsize=30)
-    ax1.set_xlabel('Distance along the main flowline (m)', fontsize=30)
-    ax2.set_ylabel('Altitude (m)',fontsize=30)
-    ax2.set_xlabel('Distance along the main flowline (m)',fontsize=30)
+    ax1.set_ylabel('Altitude (m)')
+    ax1.set_xlabel('Distance along the main flowline (m)')
+    ax2.set_ylabel('Altitude (m)')
+    ax2.set_xlabel('Distance along the main flowline (m)')
 
-    ax1.tick_params(axis='both', which='major', labelsize=30)
-    ax2.tick_params(axis='both', which='major', labelsize=30)
-
-    plt.savefig(os.path.join(plot_dir,'experiment_'+str(ys)+'_'+gdir.rgi_id+'.pdf'), dpi=300)
+    ax1.tick_params(axis='both', which='major')
+    ax2.tick_params(axis='both', which='major')
+    plt.savefig(os.path.join(plot_dir,'experiment_'+str(ys)+'_'+gdir.rgi_id+'2.pdf'), dpi=300)
     plt.savefig(os.path.join(plot_dir, 'experiment_' + str(ys) + '_' + gdir.rgi_id + '.png'), dpi=300)
-    plt.close()
+    #plt.close()
 
-def plot_candidates(gdir, df, ex_mod, yr, step,plot_dir):
+def plot_candidates(gdir, df, yr, step,plot_dir):
     plot_dir = os.path.join(plot_dir,'06_candidates')
     utils.mkdir(plot_dir)
     fig, ax = plt.subplots(figsize=(10,10))
-    for file in os.listdir(gdir.dir):
+    for file in os.listdir(os.path.join(gdir.dir,str(yr))):
         if file.startswith('model_run'+str(yr)+'_random'):
             suffix = file.split('model_run')[1].split('.nc')[0]
-            rp = gdir.get_filepath('model_run', filesuffix=suffix)
+            rp = os.path.join(gdir.dir,str(yr),'model_run'+suffix+'.nc')
             try:
                 fmod = FileModel(rp)
                 fmod.volume_m3_ts().plot(ax=ax, color='grey', label='', zorder=1)
@@ -146,12 +144,19 @@ def plot_candidates(gdir, df, ex_mod, yr, step,plot_dir):
     elif step == 'step3':
         fmod.volume_m3_ts().plot(ax=ax, color='grey', label=None, zorder=1)
         ax.axvline(x=int(t_eq), color='k', zorder=1)
-        # colored points
-        df.plot.scatter(x='time', y='volume', ax=ax, c='Fitness value', colormap='viridis', norm=mpl.colors.LogNorm(vmin=0.1, vmax=1e5), s=250,edgecolors='k', zorder=2)
+        if df.objective.min()==df.objective.max():
+            norm = mpl.colors.LogNorm(vmin=0.1, vmax=1e05, clip=True)
+            cmap = matplotlib.cm.get_cmap('viridis')
+            df.plot.scatter(x='time', y='volume', ax=ax,
+                            color= cmap(norm(df.objective.min())),s=250,
+                            edgecolors='k', zorder=2)
+        else:
+            # colored points
+            df.plot.scatter(x='time', y='volume', ax=ax, c='Fitness value', colormap='viridis', norm=mpl.colors.LogNorm(vmin=0.1, vmax=1e5,clip=True), s=250,edgecolors='k', zorder=2)
         plt.xlabel('Time (years)')
         plt.ylabel(r'Volume $(m^3)$')
         plt.savefig(os.path.join(plot_dir, 'candidates3_' + str(yr) + '_' + str(gdir.rgi_id) + '.png'), dpi=300)
-    plt.close()
+    #plt.close()
 
     plt.figure(figsize=(15,14))
     plt.hist(df.volume.values, bins=20)
@@ -159,7 +164,7 @@ def plot_candidates(gdir, df, ex_mod, yr, step,plot_dir):
     plt.ylabel(r'Frequency')
     plt.title(gdir.rgi_id)
     plt.savefig(os.path.join(plot_dir, 'hist_candidates' + str(yr) + '_' + str(gdir.rgi_id) + '.png'), dpi=300)
-    plt.close()
+    #plt.close()
 
 
 
@@ -463,9 +468,9 @@ def plot_fitness_over_time2(gdir, df_list, ex_mod, plot_dir):
     cbar = fig.colorbar(sm, cax=cax, **kw)
     cbar.ax.tick_params(labelsize=25)
     cbar.set_label('Fitness value', fontsize=25)
-    #plt.savefig(os.path.join(plot_dir, 'starting' '_' + gdir.rgi_id + '.png'))
-    #plt.close()
-    plt.show()
+    plt.savefig(os.path.join(plot_dir, 'starting' '_' + gdir.rgi_id + '.png'))
+    plt.close()
+    #plt.show()
 
 
 def plot_fitness_over_time3(gdir, df_list, ex_mod, plot_dir,ax,fig):
@@ -640,7 +645,7 @@ def plot_col_fitness(gdir,df,ex_mod,ys, plot_dir):
     plt.savefig(os.path.join(plot_dir,'surface_'+str(ys)+'_'+gdir.rgi_id+'.pdf'), dpi=300)
     plt.savefig(os.path.join(plot_dir, 'surface_' + str(ys) + '_' + gdir.rgi_id + '.png'), dpi=300)
 
-    plt.close()
+    #plt.close()
 
 
 def plot_col_fitness2(gdir,df,ex_mod,ys, plot_dir):
@@ -973,7 +978,7 @@ def plot_abs_error_t0(list,ylabel,plot_dir):
     plt.xlabel(r'Starting time $t_0$')
     plt.tight_layout()
 
-    plt.savefig(plot_dir, dpi=300)
+    #plt.savefig(plot_dir, dpi=300)
     plt.show()
 
 def plot_error_t02(list,plot_dir,abs=True):
@@ -981,6 +986,7 @@ def plot_error_t02(list,plot_dir,abs=True):
     import seaborn as sns
 
     merge = list[0].append(list[1])
+
     for rgi in merge.index:
         merge.loc[rgi, 'end'] = rgi.split('11.')[-1]
     to_delete = merge['end'].value_counts() > 1
