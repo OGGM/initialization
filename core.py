@@ -395,6 +395,8 @@ def preprocessing(gdirs):
     :param gdirs: list of oggm.GlacierDirectories
     :return None, but creates required files
     """
+    workflow.execute_entity_task(tasks.glacier_masks, gdirs)
+
     list_tasks = [
         tasks.glacier_masks,
         tasks.compute_centerlines,
