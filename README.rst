@@ -1,4 +1,4 @@
-.. image:: figures/logo.png
+.. image:: _figures/logo.png
 
 
 Reconstruct estimated glacier states
@@ -11,6 +11,7 @@ change with time lags between a few years and many centuries, and the backwards 
 This repository host a new method, based and developed for the usage of OGGM, that estimates past glacier states
 
 Our method consists of 3 steps:
+
 - generation of glacier states
 - identification of glacier candidates, and
 - their evaluation based on the misfit between the modelled and the observed surface elevation at the year of the observation.
