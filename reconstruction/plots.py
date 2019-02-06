@@ -1,3 +1,4 @@
+import os
 from functools import partial
 from copy import deepcopy
 from pylab import *
@@ -121,23 +122,18 @@ def plot_candidates(gdir, df, yr, plot_dir):
 
     fmod.volume_m3_ts().plot(ax=ax, color='grey', label=None, zorder=1)
     ax.axvline(x=int(t_eq), color='k', zorder=1)
-    if df.objective.min() == df.objective.max():
-        norm = mpl.colors.LogNorm(vmin=0.1, vmax=1e05, clip=True)
-        cmap = matplotlib.cm.get_cmap('viridis')
-        df.plot.scatter(x='time', y='volume', ax=ax,
-                        color=cmap(norm(df.objective.min())), s=250,
-                        edgecolors='k', zorder=2)
-        sm = plt.cm.ScalarMappable(cmap=cmap)
-        sm.set_array([])
-        cbar = fig.colorbar(sm)
-        cbar.ax.tick_params()
-        cbar.set_label('Fitness value')
-    else:
-        # colored points
-        df.plot.scatter(x='time', y='volume', ax=ax, c='Fitness value',
-                        colormap='viridis',
-                        norm=mpl.colors.LogNorm(vmin=0.1, vmax=1e5,clip=True),
-                        s=250,edgecolors='k', zorder=2)
+    cmap = matplotlib.cm.get_cmap('viridis')
+
+    df.plot.scatter(x='time', y='volume', ax=ax, c='Fitness value',
+                    colormap='viridis',
+                    norm=mpl.colors.LogNorm(vmin=0.1, vmax=1e5, clip=True),
+                    s=250, edgecolors='k', zorder=2)
+
+    # plot again points with objective == 0, without norm
+    if len(df[df.objective == 0]) > 0:
+        df[df.objective == 0].plot.scatter(x='time', y='volume', ax=ax,
+                                           c=cmap(0),
+                                           s=250, edgecolors='k', zorder=2)
     plt.xlabel('Time (years)')
     plt.ylabel(r'Volume $(m^3)$')
     plt.show()

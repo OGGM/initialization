@@ -41,13 +41,13 @@ def _run_parallel_experiment(gdir):
         fls = gdir.read_pickle('model_flowlines')
         # try to run random climate with temperature bias -1
         try:
-            model = tasks.run_random_climate(gdir, nyears=400, bias=0, seed=1,
+            model = tasks.run_random_climate(gdir, nyears=400, y0=1850, bias=0, seed=1,
                                              temperature_bias=-1,
                                              init_model_fls=fls)
 
         # perhaps temperature_bias -1 was to ambitious, try larger one
         except:
-            model = tasks.run_random_climate(gdir, nyears=400, bias=0, seed=1,
+            model = tasks.run_random_climate(gdir, nyears=400, y0=1850,bias=0, seed=1,
                                              temperature_bias=-0.5,
                                              init_model_fls=fls)
 
@@ -354,7 +354,8 @@ def evaluation(gdir, fls_list, y0, ye):
             obj = fitness_value(fmod_t,emod_t,ye)
             df = df.append({'model':copy.deepcopy(fmod),'objective':obj,
                             'temp_bias':float(f.split('_')[-2]),
-                            'time':f.split('_')[-1]},ignore_index=True)
+                            'time':f.split('_')[-1],'volume':fmod.volume_m3},
+                           ignore_index=True)
         except:
             pass
 
