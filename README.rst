@@ -8,9 +8,9 @@ Reconstructing past glacier change is of interest for different applications, e.
 One approach is to use a glacier model, forced by reconstructions of climate, to estimate past glacier states. However, glaciers respond to climate variability and
 change with time lags between a few years and many centuries, and the backwards reconstruction is impeded by the non-linear interaction between glacier geometry and mass balance.
 
-This repository host a new method, based and developed for the usage of OGGM, that estimates past glacier states
+This repository host a new method, based on OGGM that estimates past glacier states.
 
-Our method consists of 3 steps:
+Our method consists of 3 steps and the workflow is shown in the following figure:
 
 - generation of glacier states
 - identification of glacier candidates, and
