@@ -46,7 +46,7 @@ if __name__ == '__main__':
         WORKING_DIR = os.environ.get("S_WORKDIR")
         cfg.PATHS['working_dir'] = WORKING_DIR
         rgidf = salem.read_shapefile(os.path.join('/home/users/julia/reconstruction','rgi', 'oetztal.shp'))
-        i = int(os.environ.get('I')) - 1
+        job_nr = int(os.environ.get('I')) - 1
     else:
         WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/paper2'
         cfg.PATHS['working_dir'] = WORKING_DIR
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     preprocessing(gdirs)
 
     if ON_CLUSTER:
-        gdirs = gdirs[i:len(gdirs):20]
+        gdirs = gdirs[job_nr:len(gdirs):20]
 
     # experiments
     synthetic_experiments_parallel(gdirs)
@@ -152,5 +152,9 @@ if __name__ == '__main__':
         else:
             print(gdir.rgi_id, ' has no experiment')
 
-    abs_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error.pkl'))
-    rel_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error.pkl'))
+    if ON_CLUSTER:
+        abs_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error'+str(job_nr)+'.pkl'))
+        rel_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error'+str(job_nr)+'.pkl'))
+    else:
+        abs_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error.pkl'))
+        rel_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error.pkl'))
