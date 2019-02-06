@@ -16,6 +16,8 @@ Our method consists of 3 steps:
 - identification of glacier candidates, and
 - their evaluation based on the misfit between the modelled and the observed surface elevation at the year of the observation.
 
+.. image:: _figures/workflow.pdf
+
 We tested our method on glaciers located in the Alps and reconstruct their state in 1850. In most cases, the resulting reconstruction is non-unique, as multiple initial states
 converge towards the observed state in the year of observation.
 
