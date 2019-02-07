@@ -17,8 +17,6 @@ source /home/users/julia/python3_env/bin/activate
 # On every node, when slurm starts a job, it will make sure the directory
 # /work/username exists and is writable by the jobs user.
 # We create a sub-directory there for this job to store its runtime data at.
-#S_WORKDIR="/work/$SLURM_JOB_USER/rofental2"
-#S_WORKDIR="/work/$SLURM_JOB_USER/oetztal_complete"
 S_WORKDIR="/work/$SLURM_JOB_USER/paper"
 
 mkdir -p "$S_WORKDIR"
@@ -41,7 +39,7 @@ echo "DONE"
 # Once a slurm job is done, slurm will clean up the /work directory on that node from any leftovers $
 # So copy any result data you need from there back to your home dir!
 # $SLURM_SUBMIT_DIR points to the directory from where the job was initially commited.
-OUTDIR="../${SLURM_SUBMIT_DIR}/out"
+OUTDIR="/home/users/julia/reconstruction/out"
 mkdir -p "$OUTDIR"
 # Copy any neccesary result data.
 cp -r "${S_WORKDIR}" "${OUTDIR}"
