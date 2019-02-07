@@ -24,12 +24,12 @@ converge towards the observed state in the year of observation.
 Installation
 ------------
 
-You can install this custom package with:
+You can install this custom package with::
 
      pip install git+https://github.com/OGGM/reconstruction.git
 
 However, what you'd probably like to do is to `fork <https://help.github.com/articles/fork-a-repo/>`_ this repository and use
-it as a template for your own project. You can install it locally with
+it as a template for your own project. You can install it locally with::
 
     pip install -e .
 
@@ -52,4 +52,4 @@ Get in touch
 .. _on GitHub: https://github.com/OGGM/reconstruction
 .. _issue tracker: https://github.com/OGGM/reconstruction/issues
 .. _pull request: https://github.com/OGGM/reconstruction/pulls
-.. _example: https://github.com/OGGM/reconstruction/examples
+.. _example: https://github.com/OGGM/reconstruction/tree/master/examples
