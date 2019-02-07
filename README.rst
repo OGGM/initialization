@@ -52,4 +52,4 @@ Get in touch
 .. _on GitHub: https://github.com/OGGM/reconstruction
 .. _issue tracker: https://github.com/OGGM/reconstruction/issues
 .. _pull request: https://github.com/OGGM/reconstruction/pulls
-.. _example: https://github.com/OGGM/reconstruction/example
+.. _example: https://github.com/OGGM/reconstruction/examples
