@@ -41,7 +41,7 @@ if __name__ == '__main__':
     if ON_CLUSTER:
         WORKING_DIR = os.environ.get("S_WORKDIR")
         cfg.PATHS['working_dir'] = WORKING_DIR
-        job_nr = int(os.environ.get('I')) - 1
+        job_nr = int(os.environ.get('I'))
     else:
         WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/alps/'
         cfg.PATHS['working_dir'] = WORKING_DIR
@@ -81,19 +81,20 @@ if __name__ == '__main__':
     rgidf = rgidf.sort_values('Area', ascending=False)
 
     gdirs = workflow.init_glacier_regions(rgidf)
-    gdirs = gdirs[1:len(gdirs):80]
+    if ON_CLUSTER:
+        gdirs = gdirs[job_nr:len(gdirs):80]
 
     preprocessing(gdirs)
 
     # experiments
-    synthetic_experiments_parallel(gdirs[-8:])
+    synthetic_experiments_parallel(gdirs)
 
     t_0 = 1850
     t_e = 2000
 
     model_df = pd.DataFrame()
     time_df = pd.DataFrame()
-    for gdir in gdirs[-8:]:
+    for gdir in gdirs:
 
         if os.path.isfile(os.path.join(gdir.dir, 'model_run_experiment.nc')):
             start = time.time()
@@ -127,9 +128,11 @@ if __name__ == '__main__':
 
             except:
                 print(gdir.rgi_id+' failed')
-    model_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'models.pkl'), compression='gzip')
-    time_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'time.pkl'), compression='gzip')
 
+    if ON_CLUSTER:
+        model_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'models_'+str(job_nr)+'.pkl'), compression='gzip')
+        time_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'time_'+str(job_nr)+'.pkl'), compression='gzip')
+    '''
     model_df = pd.read_pickle(os.path.join(cfg.PATHS['working_dir'], 'models.pkl'), compression='gzip')
     time_df = pd.read_pickle(os.path.join(cfg.PATHS['working_dir'], 'time.pkl'), compression='gzip')
 
@@ -149,3 +152,4 @@ if __name__ == '__main__':
     plot_relative_error(error1, error2, 'abs', cfg.PATHS['plot_dir'], all=True)
     plot_relative_error(error3, error4, 'rel', cfg.PATHS['plot_dir'], all=True)
     plot_relative_error(error5, error6, 'log', cfg.PATHS['plot_dir'], all=True)
+    '''
