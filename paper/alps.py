@@ -94,6 +94,8 @@ if __name__ == '__main__':
 
     model_df = pd.DataFrame()
     time_df = pd.DataFrame()
+
+
     for gdir in gdirs:
 
         if os.path.isfile(os.path.join(gdir.dir, 'model_run_experiment.nc')):
@@ -108,12 +110,17 @@ if __name__ == '__main__':
                         med_mod = find_median(df, 125)
                         min_mod = deepcopy(df.loc[df.fitness.idxmin(), 'model'])
 
+                        df['fitness2'] = df.model.apply(lambda x: abs(x.area_km2_ts()[2000] - ex_mod.area_km2_ts()[2000]) ** 2)
+                        df['fitness3'] = df.model.apply(lambda x: abs(x.length_m_ts()[2000] - ex_mod.length_m_ts()[2000]) ** 2)
+
                         # saves median state, minimum state and experiment model
                         model_df.loc[gdir.rgi_id, 'median'] = deepcopy(med_mod)
                         model_df.loc[gdir.rgi_id, 'minimum'] = deepcopy(min_mod)
                         model_df.loc[gdir.rgi_id, 'experiment'] = deepcopy(ex_mod)
+                        model_df.loc[gdir.rgi_id, 'fit2'] = deepcopy(df.loc[df.fitness2.idxmin(), 'model'])
+                        model_df.loc[gdir.rgi_id, 'fit3'] = deepcopy(df.loc[df.fitness3.idxmin(), 'model'])
 
-                        # saves time
+                        # time_df
                         time_df.loc[gdir.rgi_id, 'time'] = time.time()-start
 
                         try:
@@ -132,6 +139,7 @@ if __name__ == '__main__':
     if ON_CLUSTER:
         model_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'models_'+str(job_nr)+'.pkl'), compression='gzip')
         time_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'time_'+str(job_nr)+'.pkl'), compression='gzip')
+
     '''
     model_df = pd.read_pickle(os.path.join(cfg.PATHS['working_dir'], 'models.pkl'), compression='gzip')
     time_df = pd.read_pickle(os.path.join(cfg.PATHS['working_dir'], 'time.pkl'), compression='gzip')
