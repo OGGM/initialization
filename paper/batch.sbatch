@@ -3,7 +3,7 @@
 #SBATCH --job-name=reconstruction
 #SBATCH --partition=low
 #SBATCH --exclusive
-#SBATCH --array=0-19
+#SBATCH --array=0
 
 # Abort whenever a single step fails. Without this, bash will just continue on errors.
 #set -e
@@ -32,7 +32,7 @@ export SLURM_ARRAY_TASK_ID
 echo "$SLURM_ARRAY_TASK_ID"
 
 # Run the actual job. The srun invocation starts it as individual step for slurm.
-srun -n 1 -c "${SLURM_JOB_CPUS_PER_NODE}" python3 ./run.py
+srun -n 1 -c "${SLURM_JOB_CPUS_PER_NODE}" python3 ./alps.py
 # Print a final message so you can actually see it being done in the output log.
 echo "DONE"
 
