@@ -21,7 +21,7 @@ from matplotlib.path import Path
 from matplotlib.patches import Rectangle
 import matplotlib.patches as patches
 import matplotlib.cbook as cbook
-import ptitprince as pt
+#import ptitprince as pt
 from matplotlib.collections import PolyCollection
 import seaborn as sns
 #from sklearn import preprocessing
