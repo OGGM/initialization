@@ -47,14 +47,16 @@ def _run_parallel_experiment(gdir):
 
         # perhaps temperature_bias -1 was to ambitious, try larger one
         except:
-            model = tasks.run_random_climate(gdir, nyears=400, y0=1850,bias=0, seed=1,
+            model = tasks.run_random_climate(gdir, nyears=400, bias=0, y0=1850, seed=1,
                                              temperature_bias=-0.5,
                                              init_model_fls=fls)
 
         # construct observed glacier, previous glacier will be run forward from
         # 1850 - 2000 with past climate file
+        b = fls[-1].bed_h
+
         fls = copy.deepcopy(model.fls)
-        tasks.run_from_climate_data(gdir, ys=1850, ye=2000, init_model_fls=fls,
+        model = tasks.run_from_climate_data(gdir, ys=1850, ye=2000, init_model_fls=fls,
                                     output_filesuffix='_experiment')
     except:
         print('experiment failed : ' + str(gdir.rgi_id))
@@ -227,12 +229,13 @@ def identification(gdir, list, ys, ye, n):
 def find_possible_glaciers(gdir, y0, ye, n):
 
     path = os.path.join(gdir.dir, 'result' + str(y0) + '.pkl')
-    # if results are already there and dimensions are the same, don't run it again
+
+    # if results are already there and number of candidates are the same, don't run it again
     if os.path.isfile(path):
         results = pd.read_pickle(path, compression='gzip')
+
         if len(results) == n:
             return results
-
 
     # 1. Generation of possible glacier states
     #    - Run random climate over 400 years with different temperature biases
@@ -252,18 +255,18 @@ def find_possible_glaciers(gdir, y0, ye, n):
     #    - copy all model_run files to tarfile
     results = evaluation(gdir, candidate_list, y0, ye)
 
-
     # move all model_run* files from year y0 to a new directory --> avoids
     # that thousand of thousands files are created in gdir.dir
-    utils.mkdir(os.path.join(gdir.dir,str(y0)),reset=False)
+    utils.mkdir(os.path.join(gdir.dir, str(y0)), reset=False)
     for file in os.listdir(gdir.dir):
         if file.startswith('model_run' + (str(y0))):
-            os.rename(os.path.join(gdir.dir,file),
-                      os.path.join(gdir.dir,str(y0),file))
+            os.rename(os.path.join(gdir.dir, file),
+                      os.path.join(gdir.dir, str(y0), file))
         elif file.startswith('model_diagnostics' + (str(y0))):
             os.remove(os.path.join(gdir.dir, file))
 
     return results
+
 
 def generation(gdir, y0):
 
@@ -286,7 +289,6 @@ def generation(gdir, y0):
         bias_list = [b.round(3) for b in np.arange(-5, -3, 0.05)]
         list = [((i+n+1) ** 2, b) for i, b in enumerate(bias_list)]
         random_run_list = random_run_list.append(_run_random_parallel(gdir, y0, list), ignore_index=True)
-
 
     # check for zero glacier
     max_bias = random_run_list['temp_bias'].idxmax()
@@ -323,7 +325,6 @@ def evaluation(gdir, fls_list, y0, ye):
     pool.close()
     pool.join()
 
-
     df = pd.DataFrame()
     prefix = 'model_run'+str(y0)+'_past'
     '''
@@ -344,20 +345,23 @@ def evaluation(gdir, fls_list, y0, ye):
 
         try:
             # read past climate model runs and calculate objective
-            rp = gdir.get_filepath('model_run',filesuffix=f)
+            rp = gdir.get_filepath('model_run', filesuffix=f)
             if not os.path.exists(rp):
                 rp = os.path.join(gdir.dir, str(y0), 'model_run' + f + '.nc')
 
             fmod = FileModel(rp)
             fmod_t = copy.deepcopy(fmod)
             fmod_t.run_until(ye)
-            obj = fitness_value(fmod_t,emod_t,ye)
-            df = df.append({'model':copy.deepcopy(fmod),'objective':obj,
-                            'temp_bias':float(f.split('_')[-2]),
-                            'time':f.split('_')[-1],'volume':fmod.volume_m3},
+            fitness = fitness_value(fmod_t, emod_t, ye)
+            df = df.append({'model': copy.deepcopy(fmod), 'fitness': fitness,
+                            'temp_bias': float(f.split('_')[-2]),
+                            'time': f.split('_')[-1], 'volume': fmod.volume_m3},
                            ignore_index=True)
         except:
-            pass
+
+            df = df.append({'model': None, 'fitness': None,
+                            'temp_bias': float(f.split('_')[-2]),
+                            'time': f.split('_')[-1], 'volume': None})
 
     # save df with result models
     path = os.path.join(gdir.dir, 'result' + str(y0) + '.pkl')
@@ -368,12 +372,13 @@ def evaluation(gdir, fls_list, y0, ye):
 
 def fitness_value(model1, model2, ye):
     """
-    calculates the objective value (difference in geometry)
+    calculates the fitness value (difference in geometry)
     :param model1: oggm.flowline.FluxBasedModel
     :param model2: oggm.flowline.FluxBasedModel
     :param ye:     int, year of observation
     :return:       float
     """
+
     model1 = copy.deepcopy(model1)
     model2 = copy.deepcopy(model2)
     model2.run_until(ye)
@@ -381,13 +386,17 @@ def fitness_value(model1, model2, ye):
 
     fls1 = model1.fls
     fls2 = model2.fls
-    objective=0
+    fitness = 0
+    m = 0
     for i in range(len(model1.fls)):
-        objective = objective + np.sum(
-            abs(fls1[i].surface_h - fls2[i].surface_h)**2) + \
-                    np.sum(abs(fls1[i].widths - fls2[i].widths)**2)
+        fitness = fitness + np.sum(
+            abs(fls1[i].surface_h - fls2[i].surface_h) ** 2) + \
+                    np.sum(abs(fls1[i].widths - fls2[i].widths) ** 2)
+        m = m + fls1[i].nx
 
-    return objective
+    fitness = fitness / m
+
+    return fitness
 
 
 def preprocessing(gdirs):
@@ -415,12 +424,7 @@ def preprocessing(gdirs):
 
     workflow.climate_tasks(gdirs)
     workflow.execute_entity_task(tasks.prepare_for_inversion, gdirs)
-
-    #for gdir in gdirs:
-    #    mass_conservation_inversion(gdir)
-
     workflow.execute_entity_task(mass_conservation_inversion, gdirs)
-    #workflow.execute_entity_task(tasks.volume_inversion, gdirs)
     workflow.execute_entity_task(tasks.filter_inversion_output, gdirs)
     workflow.execute_entity_task(tasks.init_present_time_glacier, gdirs)
 
