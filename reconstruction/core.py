@@ -233,9 +233,11 @@ def find_possible_glaciers(gdir, y0, ye, n):
     # if results are already there and number of candidates are the same, don't run it again
     if os.path.isfile(path):
         results = pd.read_pickle(path, compression='gzip')
-
+        return results
+        '''
         if len(results) == n:
             return results
+        '''
 
     # 1. Generation of possible glacier states
     #    - Run random climate over 400 years with different temperature biases

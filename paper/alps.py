@@ -12,6 +12,8 @@ import geopandas as gpd
 from oggm import cfg, workflow, utils
 pd.options.mode.chained_assignment = None
 import time
+from scipy import stats
+from scipy.optimize import curve_fit
 
 def find_median(df, epsilon):
 
@@ -31,6 +33,9 @@ def find_median(df, epsilon):
     except:
 
         return deepcopy(df.iloc[df.fitness.idxmin()].model)
+
+def func(x, a, b):
+    return(x*a+b)
 
 if __name__ == '__main__':
     cfg.initialize()
@@ -76,7 +81,7 @@ if __name__ == '__main__':
     # RGI file
     path = utils.get_rgi_region_file('11', version='61')
     rgidf = gpd.read_file(path)
-
+    '''
     # sort for efficient using
     rgidf = rgidf.sort_values('Area', ascending=False)
 
@@ -140,24 +145,102 @@ if __name__ == '__main__':
         model_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'models_'+str(job_nr)+'.pkl'), compression='gzip')
         time_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'time_'+str(job_nr)+'.pkl'), compression='gzip')
 
-    '''
-    model_df = pd.read_pickle(os.path.join(cfg.PATHS['working_dir'], 'models.pkl'), compression='gzip')
-    time_df = pd.read_pickle(os.path.join(cfg.PATHS['working_dir'], 'time.pkl'), compression='gzip')
 
+    model_df = pd.DataFrame()
+    time_df = pd.DataFrame()
+    for file in os.listdir(cfg.PATHS['working_dir']):
+        print(file)
+        if file.startswith('models'):
+            p = os.path.join(cfg.PATHS['working_dir'], file)
+            model_df = model_df.append(pd.read_pickle(p, compression='gzip'))
+        if file.startswith('time'):
+            p = os.path.join(cfg.PATHS['working_dir'], file)
+            time_df = time_df.append(pd.read_pickle(p, compression='gzip'))
+
+    model_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'models_merge.pkl'))
+    time_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'time_merge.pkl'))
+
+
+
+    model_df = pd.read_pickle(os.path.join(cfg.PATHS['working_dir'], 'models_merge.pkl'))
     median = model_df['median'].apply(lambda x: x.volume_km3_ts())
     minimum = model_df['minimum'].apply(lambda x: x.volume_km3_ts())
     experiment = model_df['experiment'].apply(lambda x: x.volume_km3_ts())
+    fit2 = model_df['fit2'].apply(lambda x: x.volume_km3_ts())
+    fit3 = model_df['fit3'].apply(lambda x: x.volume_km3_ts())
 
+    # absolute errors
     error1 = median-experiment
     error2 = minimum-experiment
 
+    # relative errors
     error3 = (median-experiment)/experiment
     error4 = (minimum-experiment)/experiment
 
+    # logarithmic errors
     error5 = np.log(median/experiment)
     error6 = np.log(minimum/experiment)
 
+    # errors for different fitness functions
+    error7 = (fit2-experiment)/experiment
+    error8 = (fit3-experiment)/experiment
+
+    # plots
     plot_relative_error(error1, error2, 'abs', cfg.PATHS['plot_dir'], all=True)
     plot_relative_error(error3, error4, 'rel', cfg.PATHS['plot_dir'], all=True)
     plot_relative_error(error5, error6, 'log', cfg.PATHS['plot_dir'], all=True)
+
+    plt.figure(figsize=(15, 10))
+    plt.title('Relative error, n=' + str(len(error4.index)))
+    error4.median().plot(label='geometry')
+    plt.fill_between(error4.columns.values, error4.quantile(0.75), error4.quantile(0.25), alpha=0.5, zorder=3)
+    error7.median().plot(label='area')
+    plt.fill_between(error7.columns.values, error7.quantile(0.75), error7.quantile(0.25), alpha=0.5, zorder=2)
+    error8.median().plot(label='length')
+    plt.fill_between(error8.columns.values, error8.quantile(0.75), error8.quantile(0.25), alpha=0.5, zorder=1)
+
+    plt.grid()
+    plt.xlabel('Time')
+    plt.ylabel(r'Median with interquartile range ')
+    plt.legend(loc='best')
+    plt.savefig(os.path.join(cfg.PATHS['plot_dir'], 'errors', 'compare_median.png'),dpi=300)
+
+    # mean
+    plt.figure(figsize=(15, 10))
+    plt.title('Relative error, n=' + str(len(error4.index)))
+    error4.mean().plot(label='geometry')
+    plt.fill_between(error4.columns.values, error4.mean()+error4.std(),
+                     error4.mean() - error4.std(), alpha=0.5, zorder=3)
+    error7.median().plot(label='area')
+    plt.fill_between(error7.columns.values, error7.mean()+error7.std(),
+                     error7.mean() - error7.std(), alpha=0.5, zorder=2)
+    error8.median().plot(label='length')
+    plt.fill_between(error8.columns.values, error8.mean()+error8.std(),
+                     error8.mean() - error8.std(), alpha=0.5, zorder=1)
+
+    plt.grid()
+    plt.xlabel('Time')
+    plt.ylabel(r'Mean with standard deviation ')
+    plt.legend(loc='best')
+    plt.savefig(os.path.join(cfg.PATHS['plot_dir'], 'errors', 'compare_mean.png'), dpi=300)
+    plt.show()
+
     '''
+
+    time_df = pd.read_pickle(os.path.join(cfg.PATHS['working_dir'], 'time_merge.pkl'))
+    time_df['time'] = time_df.time.apply(lambda x: x/60)
+    time_df['area'] = rgidf.set_index('RGIId').loc[time_df.index].Area
+    time_df.plot.scatter('time', 'area', alpha=0.7)
+    plt.ylabel(r'Area ($km^2$)')
+    plt.xlabel(r'Time (minutes)')
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(x=time_df.time.values, y=time_df.area.values)
+    print(slope, intercept)
+    x = np.linspace(time_df.time.min(), 40, 100)
+    y = slope*x + intercept
+    plt.plot(x, y, color='C0')
+
+    plt.show()
+
+    popt, pcov = curve_fit(func, time_df.time.values, time_df.area.values)
+    print(popt, pcov)

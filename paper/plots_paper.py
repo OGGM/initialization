@@ -1303,8 +1303,8 @@ def plot_relative_error(df1, df2, type, plot_dir,all=False):
     plot_dir = os.path.join(plot_dir, 'errors')
     utils.mkdir(plot_dir)
 
-    df1 = df1.replace([np.inf, -np.inf], np.nan).dropna(axis=1)
-    df2 = df2.replace([np.inf, -np.inf], np.nan).dropna(axis=1)
+    df1 = df1.replace([np.inf, -np.inf], np.nan).dropna()
+    df2 = df2.replace([np.inf, -np.inf], np.nan).dropna()
 
     if type == 'rel':
         title = 'Relative error'
@@ -1382,6 +1382,7 @@ def plot_relative_error(df1, df2, type, plot_dir,all=False):
 
         for yr in df1.columns.values:
             if yr % 10 == 0:
+
                 y1 = df1.loc[:, yr].values
                 y2 = df2.loc[:, yr].values
 
