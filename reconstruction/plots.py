@@ -107,7 +107,7 @@ def plot_candidates(gdir, df, yr, plot_dir):
             rp = os.path.join(gdir.dir, str(yr), 'model_run'+suffix+'.nc')
             try:
                 fmod = FileModel(rp)
-                fmod.volume_m3_ts().plot(ax=ax, color='grey', label='',
+                fmod.volume_km3_ts().plot(ax=ax, color='grey', label='',
                                          zorder=1)
 
             except:
@@ -116,26 +116,25 @@ def plot_candidates(gdir, df, yr, plot_dir):
     # last one again for labeling
     df.time = df.time.apply(lambda x: int(x))
     t_eq = df['time'].sort_values().iloc[0]
-
-    df['Fitness value'] = df.objective
+    df['Fitness value'] = df.fitness
     plt.title(gdir.rgi_id)
 
-    fmod.volume_m3_ts().plot(ax=ax, color='grey', label=None, zorder=1)
+    fmod.volume_km3_ts().plot(ax=ax, color='grey', label=None, zorder=1)
     ax.axvline(x=int(t_eq), color='k', zorder=1)
     cmap = matplotlib.cm.get_cmap('viridis')
 
     df.plot.scatter(x='time', y='volume', ax=ax, c='Fitness value',
                     colormap='viridis',
-                    norm=mpl.colors.LogNorm(vmin=0.1, vmax=1e5, clip=True),
+                    norm=mpl.colors.LogNorm(vmin=0.01, vmax=1e3, clip=True),
                     s=250, edgecolors='k', zorder=2)
 
     # plot again points with objective == 0, without norm
-    if len(df[df.objective == 0]) > 0:
-        df[df.objective == 0].plot.scatter(x='time', y='volume', ax=ax,
+    if len(df[df.fitness == 0]) > 0:
+        df[df.fitness == 0].plot.scatter(x='time', y='volume', ax=ax,
                                            c=cmap(0),
                                            s=250, edgecolors='k', zorder=2)
     plt.xlabel('Time (years)')
-    plt.ylabel(r'Volume $(m^3)$')
+    plt.ylabel(r'Volume $(km^3)$')
     plt.show()
 
 
@@ -145,7 +144,7 @@ def plot_fitness_over_time(gdir, df_list, ex_mod, plot_dir):
 
     fig = plt.figure(figsize=(20, 10))
     ax = fig.add_subplot(111, yscale='linear')
-    norm = mpl.colors.LogNorm(vmin=0.1, vmax=1e5)
+    norm = mpl.colors.LogNorm(vmin=0.01, vmax=1e3)
     cmap = matplotlib.cm.get_cmap('viridis')
 
     volumes = np.linspace(df_list['1850'].volume.min(),
@@ -223,15 +222,15 @@ def plot_surface(gdir, df, ex_mod, ys, plot_dir):
     else:
         plt.suptitle(gdir.rgi_id)
 
-    norm = mpl.colors.LogNorm(vmin=0.1, vmax=1e5)
+    norm = mpl.colors.LogNorm(vmin=0.01, vmax=1e3)
     cmap = matplotlib.cm.get_cmap('viridis')
 
-    df = df.sort_values('objective', ascending=False)
+    df = df.sort_values('fitness', ascending=False)
 
     for i, model in df['model'].iteritems():
         model = deepcopy(model)
         model.reset_y0(ys)
-        color = cmap(norm(df.loc[i, 'objective']))
+        color = cmap(norm(df.loc[i, 'fitness']))
 
         ax1.plot(x, deepcopy(model.fls[-1].surface_h), color=color,
                  label='')
@@ -341,8 +340,8 @@ def plot_median(gdir, df, ex_mod, ys, plot_dir):
     else:
         plt.suptitle(gdir.rgi_id)
 
-    df = df.sort_values('objective', ascending=False)
-    df = df[df.objective < 100]
+    df = df.sort_values('fitness', ascending=False)
+    df = df[df.fitness < 125]
     min_id = df.volume.idxmin()
     max_id = df.volume.idxmax()
 
@@ -354,10 +353,10 @@ def plot_median(gdir, df, ex_mod, ys, plot_dir):
 
     ax1.fill_between(x, deepcopy(min_model.fls[-1].surface_h),
                      deepcopy(max_model.fls[-1].surface_h), alpha=0.3,
-                     color='grey', label=r'$\mathcal{S}_{'+str(ys)+'}^{100}$')
+                     color='grey', label=r'$\mathcal{S}_{'+str(ys)+'}^{125}$')
 
     # 5% quantile and median of 5% quantile
-    quant_df = df[df.objective <= df.objective.quantile(0.05)]
+    quant_df = df[df.fitness <= df.fitness.quantile(0.05)]
     q_min_id = quant_df.volume.idxmin()
     q_max_id = quant_df.volume.idxmax()
 
@@ -368,7 +367,7 @@ def plot_median(gdir, df, ex_mod, ys, plot_dir):
     q_max_model.reset_y0(ys)
     ax1.fill_between(x, deepcopy(q_min_model.fls[-1].surface_h),
                      deepcopy(q_max_model.fls[-1].surface_h), alpha=0.5,
-                     label=r'$Q_{0.05}(\mathcal{S}_{'+str(ys)+'}^{100})$')
+                     label=r'$Q_{0.05}(\mathcal{S}_{'+str(ys)+'}^{125})$')
 
     # median of 5% quantile
     quant_df.loc[:, 'length'] = quant_df.model.apply(lambda x: x.length_m)
