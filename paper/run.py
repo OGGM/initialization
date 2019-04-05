@@ -5,10 +5,12 @@ import sys
 from copy import deepcopy
 sys.path.append('../')
 from reconstruction.core import *
+from reconstruction.animation import *
 from plots_paper import *
 
 import matplotlib.pyplot as plt
-import salem
+import time
+import geopandas as gpd
 from oggm import cfg, workflow, utils
 pd.options.mode.chained_assignment = None
 
@@ -37,6 +39,24 @@ def fitness_function(model1, model2):
     return fitness
 
 
+def find_median(df, epsilon):
+
+    try:
+        accept_df = df[df.fitness <= epsilon]
+        quant_df = accept_df[accept_df.fitness <= accept_df.fitness.quantile(0.05)]
+        # median state
+        quant_df.loc[:, 'length'] = quant_df.model.apply(lambda x: x.length_m)
+        quant_df = quant_df.sort_values('length', ascending=False)
+        l = len(quant_df)
+        if l % 2:
+            index = int((l - 1) / 2)
+        else:
+            index = int(l / 2)
+        return deepcopy(quant_df.iloc[index].model)
+
+    except:
+
+        return deepcopy(df.iloc[df.fitness.idxmin()].model)
 
 
 if __name__ == '__main__':
@@ -48,15 +68,13 @@ if __name__ == '__main__':
     if ON_CLUSTER:
         WORKING_DIR = os.environ.get("S_WORKDIR")
         cfg.PATHS['working_dir'] = WORKING_DIR
-        rgidf = salem.read_shapefile(os.path.join('/home/users/julia/reconstruction','rgi', 'oetztal.shp'))
-        job_nr = int(os.environ.get('I')) - 1
+        job_nr = int(os.environ.get('I'))
     else:
-        WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/paper'
+        WORKING_DIR = '/home/juliaeis/Dokumente/OGGM/work_dir/reconstruction/alps/'
         cfg.PATHS['working_dir'] = WORKING_DIR
         utils.mkdir(WORKING_DIR, reset=False)
-        rgidf = salem.read_shapefile('../rgi/oetztal.shp')
 
-    cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'], 'plots2')
+    cfg.PATHS['plot_dir'] = os.path.join(cfg.PATHS['working_dir'], 'plots')
     utils.mkdir(cfg.PATHS['plot_dir'], reset=False)
 
     # Use multiprocessing?
@@ -82,128 +100,87 @@ if __name__ == '__main__':
     _doc = 'contains observed and searched glacier from synthetic experiment to find intial state'
     cfg.BASENAMES['synthetic_experiment'] = ('synthetic_experiment.pkl', _doc)
 
+    # RGI file
+    path = utils.get_rgi_region_file('11', version='61')
+    rgidf = gpd.read_file(path)
+    rgidf = rgidf[rgidf.RGIId == 'RGI60-11.00779']
+
     # sort for efficient using
     rgidf = rgidf.sort_values('Area', ascending=False)
 
     gdirs = workflow.init_glacier_regions(rgidf)
-    #preprocessing(gdirs)
 
     if ON_CLUSTER:
-        gdirs = gdirs[job_nr:len(gdirs):20]
+        gdirs = gdirs[job_nr:len(gdirs):80]
+
+    # preprocessing(gdirs)
 
     # experiments
-    #synthetic_experiments_parallel(gdirs)
+    # synthetic_experiments_parallel(gdirs)
 
-    years = np.arange(1850, 1970, 10)
-    #years = [1850]
+    t_0 = 1850
+    t_e = 2000
+    epsilon = 125
+
     # DataFrames for absolute and relative errors
-    #rel_df = pd.DataFrame()
-    #abs_df = pd.DataFrame()
-    #ids = [os.path.join(cfg.PATHS['plot_dir'], 'starting', 'starting_'+id+'.png') for id in ['RGI60-11.00897', 'RGI60-11.00779', 'RGI60-11.00739']]
-    #union_plot(ids, cfg.PATHS['plot_dir'])
+    model_df = pd.DataFrame()
+    time_df = pd.DataFrame()
 
-    abs_df = pd.read_pickle(os.path.join(WORKING_DIR, 'abs_error_new.pkl'))
-    rel_df = pd.read_pickle(os.path.join(WORKING_DIR, 'rel_error_new.pkl'))
-    '''
     for gdir in gdirs:
         print(gdir.rgi_id)
-        df_list = {}
 
-        if os.path.isfile(os.path.join(gdir.dir, 'model_run_experiment.nc')) :#and (gdir.rgi_id in ['RGI60-11.00897', 'RGI60-11.00779', 'RGI60-11.00739']):
+        if os.path.isfile(os.path.join(gdir.dir, 'model_run_experiment.nc')):
 
-            for yr in years:
-                print(yr)
-                df = find_possible_glaciers(gdir, yr, 2000, 200)
-                #df = pd.read_pickle(os.path.join(gdir.dir,'result'+str(yr)+'.pkl'), compression='gzip')
-
-                df['volume'] = df.model.apply(lambda x: x.volume_m3)
-                df_list[str(yr)] = df
-
+            start = time.time()
+            try:
                 rp = gdir.get_filepath('model_run', filesuffix='_experiment')
                 ex_mod = FileModel(rp)
 
-                abs_df.loc[gdir.rgi_id, 'exp_1850'] = ex_mod.volume_km3_ts()[yr]
-                rel_df.loc[gdir.rgi_id, 'exp_1850'] = ex_mod.volume_km3_ts()[yr]
+                if ex_mod.area_km2_ts()[t_e] > 0.01:
 
+                    df = find_possible_glaciers(gdir, t_0, t_e, 200)
 
-                x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * \
-                    ex_mod.fls[-1].map_dx
+                    df['volume'] = df.model.apply(lambda x: x.volume_km3)
+                    df['length'] = df.model.apply(lambda x: x.length_m)
 
-                df['fitness'] = df.model.apply(lambda x: fitness_function(x, ex_mod))
+                    # median state
+                    med_mod = find_median(df, epsilon)
 
+                    # state with minimal fitness value (based on geometry)
+                    min_mod = deepcopy(df.loc[df.fitness.idxmin(), 'model'])
 
-                if yr == 1850:
-                    #plot_compare_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
+                    # different fitness function values
+                    df['fitness2'] = df.model.apply(lambda x: abs(x.area_km2_ts()[t_e] - ex_mod.area_km2_ts()[t_e]) ** 2)
+                    df['fitness3'] = df.model.apply(lambda x: abs(x.length_m_ts()[t_e] - ex_mod.length_m_ts()[t_e]) ** 2)
 
-                    # errors
-                    min_mod = deepcopy(df.loc[df.objective.idxmin(), 'model'])
-                    v_min = min_mod.volume_km3_ts()[yr]
-                    v_ex = ex_mod.volume_km3_ts()[yr]
-                    abs_df.loc[gdir.rgi_id, '1850_min'] = v_ex - v_min
-                    rel_df.loc[gdir.rgi_id, '1850_min'] = np.log(v_min / v_ex)
-                try:
-                    pass
-                    #plot_experiment(gdir, ex_mod, yr, cfg.PATHS['plot_dir'])
-                    #plot_candidates(gdir, df, yr, 'step3', cfg.PATHS['plot_dir'])
-                    #plot_col_fitness(gdir, df, ex_mod, yr, cfg.PATHS['plot_dir'])
-                except:
-                    pass
+                    # saves median state, minimum state and experiment model for error calculation
+                    model_df.loc[gdir.rgi_id, 'median'] = deepcopy(med_mod)
+                    model_df.loc[gdir.rgi_id, 'minimum'] = deepcopy(min_mod)
+                    model_df.loc[gdir.rgi_id, 'experiment'] = deepcopy(ex_mod)
+                    model_df.loc[gdir.rgi_id, 'fit2'] = deepcopy(df.loc[df.fitness2.idxmin(), 'model'])
+                    model_df.loc[gdir.rgi_id, 'fit3'] = deepcopy(df.loc[df.fitness3.idxmin(), 'model'])
 
+                    # saves time for each glacier state
+                    time_df.loc[gdir.rgi_id, 'time'] = time.time() - start
 
-                try:
-                    m_mod = plot_median(gdir, df, ex_mod, yr,
-                                        cfg.PATHS['plot_dir'])
-                # if not, take min state
-                except:
-                    m_mod = deepcopy(df.loc[df.objective.idxmin(),
-                                          'model'])
+                    try:
+                        # plots for each single glacier
+                        plot_experiment(gdir, ex_mod, t_0, cfg.PATHS['plot_dir'])
+                        plot_candidates(gdir, df, t_0, 'step3', cfg.PATHS['plot_dir'])
+                        plot_fitness_values(gdir, df, ex_mod, t_0, cfg.PATHS['plot_dir'])
+                        plot_median(gdir, df, epsilon, ex_mod, t_0, t_e, cfg.PATHS['plot_dir'])
+                        animation(gdir, df, ex_mod, med_mod, cfg.PATHS['plot_dir'])
+                    except:
+                        pass
+                    plt.close()
 
-                # errors
-                v_ex = ex_mod.volume_km3_ts()[yr]
-                v_med = m_mod.volume_km3_ts()[yr]
-                abs_df.loc[gdir.rgi_id,yr] = v_ex - v_med
-                rel_df.loc[gdir.rgi_id, yr] = np.log(v_med/v_ex)
+            except:
+                pass
 
-
-
-            plot_dir = os.path.join(cfg.PATHS['plot_dir'], 'starting')
-            utils.mkdir(plot_dir, reset=False)
-            #plot_fitness_over_time(gdir, df_list, ex_mod, plot_dir)
-            plt.close()
         else:
             print(gdir.rgi_id, ' has no experiment')
 
+    # saves model outputs and time measures for each job
     if ON_CLUSTER:
-        abs_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error'+str(job_nr)+'.pkl'))
-        rel_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error'+str(job_nr)+'.pkl'))
-    else:
-        abs_df.to_pickle(os.path.join(WORKING_DIR, 'abs_error_new.pkl'))
-        rel_df.to_pickle(os.path.join(WORKING_DIR, 'rel_error_new.pkl'))
-
-    abs_df = pd.read_pickle(os.path.join(WORKING_DIR, 'abs_error_new.pkl'))
-    rel_df = pd.read_pickle(os.path.join(WORKING_DIR, 'rel_error_new.pkl'))
-    '''
-    #print(rel_df)
-    rel_df = rel_df.replace([np.inf, -np.inf], np.nan).dropna().drop(columns=['1850_min', 'exp_1850'])
-    print(rel_df.describe())
-    print(abs_df.describe())
-    print(abs_df.loc[abs_df[1850].idxmin(),:] )
-    #plot_error_t02([rel_df, pd.DataFrame()], cfg.PATHS['plot_dir'],abs=False)
-
-    #plot_error_t02([abs_df.drop(columns=['1850_min', 'exp_1850']), pd.DataFrame()], cfg.PATHS['plot_dir'], abs=True)
-    #plt.show()
-
-    #plot_min_vs_med([rel_df[[1850, '1850_min']], pd.DataFrame()],'', cfg.PATHS['plot_dir'])
-    '''
-
-    rel_df = pd.DataFrame()
-    abs_df = pd.DataFrame()
-    for error in os.listdir(os.path.join(WORKING_DIR, 'errors2')):
-        if error.startswith('rel'):
-            rel_df = rel_df.append(pd.read_pickle(os.path.join(WORKING_DIR, 'errors2',error)))
-        elif error.startswith('abs'):
-            abs_df = abs_df.append(pd.read_pickle(os.path.join(WORKING_DIR, 'errors2', error)))
-
-    print(rel_df[[1850, '1850_min']])
-    plot_min_vs_med([abs_df[[1850, '1850_min']].drop('RGI60-11.00746'), pd.DataFrame()], '', cfg.PATHS['plot_dir'])
-    '''
+        model_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'models_' + str(job_nr) + '.pkl'), compression='gzip')
+        time_df.to_pickle(os.path.join(cfg.PATHS['working_dir'], 'time_' + str(job_nr) + '.pkl'), compression='gzip')
