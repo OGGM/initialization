@@ -4,8 +4,7 @@ import os
 import sys
 from copy import deepcopy
 sys.path.append('../')
-from reconstruction.core import *
-from reconstruction.animation import *
+from initialization.core import *
 from plots_paper import *
 
 import matplotlib.pyplot as plt
