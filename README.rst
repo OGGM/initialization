@@ -9,7 +9,7 @@ One approach is to use a glacier model, forced by reconstructions of climate, to
 change with time lags between a few years and many centuries, and the backwards reconstruction is impeded by the non-linear interaction between glacier geometry and mass balance.
 
 This repository host a new method, based on OGGM that estimates past glacier states.
-The method was published in "The Cryosphere": `Initialization of a global glacier model based on present-day glacier geometry and past climate information: an ensemble approach <https://www.the-cryosphere.net/13/3317/2019/tc-13-3317-2019.html>`_.
+The method is published in `"The Cryosphere" <https://www.the-cryosphere.net/13/3317/2019/tc-13-3317-2019.html>`_.
 
 
 Our method consists of 3 steps and the workflow is shown in the following figure:
