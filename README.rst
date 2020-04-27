@@ -18,7 +18,7 @@ Our method consists of 3 steps and the workflow is shown in the following figure
 - identification of glacier candidates, and
 - their evaluation based on the misfit between the modelled and the observed surface elevation in the year of the observation.
 
-.. figure:: _figures/workflow.pdf
+.. image:: _figures/workflow.png
 
 The current version was tested on glaciers located in the Alps and we reconstruct their state in 1850 by using synthetic experiments. Thus the reconstructed glacier states did
 not represent the reality and need to be handled with caution. A further developement that will also allow the application to real-world cases is under developement and a new manuscript will the submitted soon.
