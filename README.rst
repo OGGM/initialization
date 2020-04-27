@@ -1,7 +1,7 @@
 .. image:: _figures/logo.png
 
 
-Reconstruction of estimated glacier states
+Initialization of past glacier states
 ------------------------------------
 
 Reconstructing past glacier mass change is of interest for different applications, e.g. for quantifying their contribution to sea-level change.
@@ -9,6 +9,8 @@ One approach is to use a glacier model, forced by reconstructions of climate, to
 change with time lags between a few years and many centuries, and the backwards reconstruction is impeded by the non-linear interaction between glacier geometry and mass balance.
 
 This repository host a new method, based on OGGM that estimates past glacier states.
+The method was published in "The Cryosphere": `Initialization of a global glacier model based on present-day glacier geometry and past climate information: an ensemble approach <https://www.the-cryosphere.net/13/3317/2019/tc-13-3317-2019.html>`_.
+
 
 Our method consists of 3 steps and the workflow is shown in the following figure:
 
@@ -18,7 +20,10 @@ Our method consists of 3 steps and the workflow is shown in the following figure
 
 .. image:: _figures/workflow.png
 
-We tested our method on glaciers located in the Alps and reconstruct their state in 1850. In most cases, the resulting reconstruction is non-unique, as multiple initial states
+The current version was tested on glaciers located in the Alps and we reconstruct their state in 1850 by using synthetic experiments. Thus the reconstructed glacier states did
+not represent the reality and need to be handled with caution. A further developement that will also allow the application to real-world cases is under developement and a new manuscript will the submitted soon.
+
+In most cases, the resulting reconstruction is non-unique, as multiple initial states
 converge towards the observed state in the year of observation.
 
 Installation
