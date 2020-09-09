@@ -1,8 +1,6 @@
 import os
 import copy
 import pickle
-import shutil
-import tarfile
 from functools import partial
 
 # External libs
@@ -32,34 +30,33 @@ def _find_extrema(ts):
     return extrema
 
 
-def _run_experiment(gdir, temp_bias, bias, ys,ye):
+def _single_calibration_run(gdir, mb_offset, ys,ye):
     """
     Creates the synthetic experiment for one glacier. model_run_experiment.nc
     will be saved in working directory.
     """
 
-    # check, if this experiment already exists
+    # check, if this model_run already exists
     try:
-        rp = gdir.get_filepath('model_run', filesuffix='_advanced_experiment_' +str(temp_bias)+'_'+ str(bias))
+        rp = gdir.get_filepath('model_run', filesuffix='_calibration_past'+ str(mb_offset))
         model = FileModel(rp)
 
-    # otherwise create experiment
+    # otherwise create calibration_run with mb_offset
     except:
         try:
             fls = gdir.read_pickle('model_flowlines')
-            model = tasks.run_random_climate(gdir, nyears=600, y0=ys, bias=bias, seed=1,
-                                             temperature_bias=temp_bias,
-                                             init_model_fls=fls,output_filesuffix='_random_experiment_'+str(temp_bias)+'_'+str(bias) )
+            # run a 600 years random run with mb_offset
+            model = tasks.run_random_climate(gdir, nyears=600, y0=ys, bias=mb_offset, seed=1,
+                                             init_model_fls=fls,output_filesuffix='_calibration_random'+str(mb_offset) )
 
-            # construct observed glacier, previous glacier will be run forward from
-            # 1917 - rgi_date with past climate file
+            # construct s_OGGM --> previous glacier will be run forward from
+            # ys - ye with past climate file
 
             fls = copy.deepcopy(model.fls)
-            tasks.run_from_climate_data(gdir, ys=ys, ye=ye, init_model_fls=fls,bias=bias,
-                                        output_filesuffix='_advanced_experiment_'+str(temp_bias)+'_'+str(bias))
-            # to return FileModel
-            rp = gdir.get_filepath('model_run',filesuffix='_advanced_experiment_' + str(
-                                       temp_bias) + '_' + str(bias))
+            tasks.run_from_climate_data(gdir, ys=ys, ye=ye, init_model_fls=fls,bias=mb_offset,
+                                        output_filesuffix='_calibration_past'+str(mb_offset))
+            # return FileModel
+            rp = gdir.get_filepath('model_run',filesuffix='_calibration_past' + str(mb_offset))
             model = FileModel(rp)
 
         except:
@@ -75,7 +72,7 @@ def _run_experiment(gdir, temp_bias, bias, ys,ye):
 
 def _run_parallel_experiment(gdir, t0, te):
     """
-    Creates the synthetic experiment for one glacier. model_run_experiment.nc
+    Creates the synthetic experiment for one glacier. model_run_synthetic_experiment.nc
     will be saved in working directory.
     """
     try:
@@ -87,17 +84,17 @@ def _run_parallel_experiment(gdir, t0, te):
                                          init_model_fls=fls)
 
         # construct observed glacier, previous glacier will be run forward from
-        # 1850 - 2000 with past climate file
+        # t0 - te with past climate file
         b = fls[-1].bed_h
 
         fls = copy.deepcopy(model.fls)
-        model = tasks.run_from_climate_data(gdir, ys=t0, ye=te, init_model_fls=fls,
-                                    output_filesuffix='_experiment')
+        tasks.run_from_climate_data(gdir, ys=t0, ye=te, init_model_fls=fls,
+                                    output_filesuffix='_synthetic_experiment')
     except:
         print('experiment failed : ' + str(gdir.rgi_id))
 
 
-def _run_to_present(tupel, gdir, ys, ye, bias):
+def _run_to_present(tupel, gdir, ys, ye, mb_offset):
     """
     Run glacier candidates forwards.
     """
@@ -107,7 +104,7 @@ def _run_to_present(tupel, gdir, ys, ye, bias):
     # does file already exists?
     if not os.path.exists(path):
         try:
-            tasks.run_from_climate_data(gdir, ys=ys, ye=ye, bias=bias,
+            tasks.run_from_climate_data(gdir, ys=ys, ye=ye, bias=mb_offset,
                                         output_filesuffix=suffix,
                                         init_model_fls=copy.deepcopy(
                                         tupel[1].fls))
@@ -124,74 +121,71 @@ def _run_to_present(tupel, gdir, ys, ye, bias):
         except:
             return None
 
-def advanced_experiments(gdirs, temp_bias_list ,ys ):
+def calibration_runs(gdirs, temp_bias_list ,ys ):
 
     pool = Pool()
-    pool.map(partial(find_residual,temp_bias_list=temp_bias_list,ys=ys),gdirs)
+    pool.map(partial(find_mb_offset,temp_bias_list=temp_bias_list,ys=ys),gdirs)
     pool.close()
     pool.join()
 
-def find_residual(gdir, temp_bias_list, ys, a=-2000, b=2000):
-
-    for temp_bias in temp_bias_list:
-        try:
-
-            fls = gdir.read_pickle('model_flowlines')
-            mod = FluxBasedModel(flowlines=fls)
-
-            ye = gdir.rgi_date
-            max_it = 15
-            i = 0
-            bounds = [a, b]
-
-            df = pd.DataFrame()
-
-            while i < max_it:
-                bias = round((bounds[0] + bounds[1]) / 2, 2)
-
-                ex_mod2 = _run_experiment(gdir, temp_bias, bias, ys, ye)
-                if isinstance(ex_mod2, FileModel):
-                    diff = gdir.rgi_area_km2 - ex_mod2.area_km2_ts()[ye]
-                    error = ''
-                # bias needs to be set higher
-                else:
-                    diff = -np.inf
-                    error = ex_mod2.split(':')[-1]
+def find_mb_offset(gdir, ys, a=-2000, b=2000):
 
 
-                df = df.append(pd.Series({'bias': bias, 'area_diff': diff, 'error':error}),
-                               ignore_index=True)
+    try:
 
-                if (abs(diff) < 1e-4) or bounds[1] - bounds[0] <= 0.25:
-                    break
+        ye = gdir.rgi_date
+        max_it = 15
+        i = 0
+        bounds = [a, b]
 
-                elif diff<0:
-                    bounds[0] = bias
-                else:
-                    bounds[1] = bias
-                i += 1
+        df = pd.DataFrame()
 
-            # best bias found
-            bias = df.iloc[df.area_diff.abs().idxmin()].bias
-            df.to_csv(os.path.join(gdir.dir,'experiment_iteration.csv'))
+        while i < max_it:
+            mb_offset = round((bounds[0] + bounds[1]) / 2, 2)
 
-            for file in os.listdir(gdir.dir):
-                if file.startswith('model') and file.endswith('.nc') and not file.endswith('_'+str(bias)+'.nc'):
-                    os.remove(os.path.join(gdir.dir,file))
+            ex_mod2 = _single_calibration_run(gdir, mb_offset, ys, ye)
+            if isinstance(ex_mod2, FileModel):
+                diff = gdir.rgi_area_km2 - ex_mod2.area_km2_ts()[ye]
+                error = ''
+            # mb_offset needs to be set higher
+            else:
+                diff = -np.inf
+                error = ex_mod2.split(':')[-1]
 
 
-        except:
-            pass
+            df = df.append(pd.Series({'mb_offset': mb_offset, 'area_diff': diff, 'error':error}),
+                           ignore_index=True)
+
+            if (abs(diff) < 1e-4) or bounds[1] - bounds[0] <= 0.25:
+                break
+
+            elif diff<0:
+                bounds[0] = mb_offset
+            else:
+                bounds[1] = mb_offset
+            i += 1
+
+        # best mb_offset found
+        mb_offset = df.iloc[df.area_diff.abs().idxmin()].mb_offset
+        df.to_csv(os.path.join(gdir.dir,'experiment_iteration.csv'))
+
+        for file in os.listdir(gdir.dir):
+            if file.startswith('model') and file.endswith('.nc') and not file.endswith('_'+str(mb_offset)+'.nc'):
+                os.remove(os.path.join(gdir.dir,file))
+
+
+    except:
+        pass
 
 
 
-def _run_random_parallel(gdir, y0, list, bias):
+def _run_random_parallel(gdir, y0, list, mb_offset):
 
     """
     Parallelize the run_random_task.
     """
     pool = Pool()
-    paths = pool.map(partial(_run_random_task, gdir=gdir, y0=y0, bias=bias), list)
+    paths = pool.map(partial(_run_random_task, gdir=gdir, y0=y0, bias=mb_offset), list)
     pool.close()
     pool.join()
 
@@ -207,7 +201,7 @@ def _run_random_parallel(gdir, y0, list, bias):
     return random_run_list
 
 
-def _run_random_task(tupel, gdir, y0, bias):
+def _run_random_task(tupel, gdir, y0, mb_offset):
     """
     Run random model to create lots of possible states
     """
@@ -222,7 +216,7 @@ def _run_random_task(tupel, gdir, y0, bias):
     if not os.path.exists(path):
 
         try:
-            tasks.run_random_climate(gdir, nyears=600, y0=y0, bias=bias,
+            tasks.run_random_climate(gdir, nyears=600, y0=y0, bias=mb_offset,
                                      seed=seed, temperature_bias=temp_bias,
                                      init_model_fls=copy.deepcopy(fls),
                                      output_filesuffix=suffix)
@@ -303,7 +297,7 @@ def identification(gdir, list, ys, ye, n):
         index = df.iloc[(df['ts_section'] - val).abs().argsort()][:1].index[0]
         if not index in indices:
             indices = np.append(indices, index)
-    candidates = df.ix[indices]
+    candidates = df.loc[indices]
     candidates = candidates.sort_values(['suffix', 'time'])
     candidates['fls_t0'] = None
     for suffix in candidates['suffix'].unique():
@@ -325,7 +319,7 @@ def identification(gdir, list, ys, ye, n):
     return fls_list
 
 
-def find_possible_glaciers(gdir, y0, ye, n, ex_mod=None, bias=0, delete=False):
+def find_possible_glaciers(gdir, y0, ye, n, ex_mod=None, mb_offset=0, delete=False):
 
     path = os.path.join(gdir.dir, 'result' + str(y0) + '.pkl')
 
@@ -336,10 +330,10 @@ def find_possible_glaciers(gdir, y0, ye, n, ex_mod=None, bias=0, delete=False):
 
     # 1. Generation of possible glacier states
     #    - Run random climate over 600 years with different temperature biases
-    random_list = generation(gdir, y0, bias)
+    random_list = generation(gdir, y0, mb_offset)
 
     # 2. Identification of glacier candidates
-    #    - Determine t_stag(begin of stagnation period)
+    #    - Determine t_stag (begin of stagnation period)
     #    - Classification by volume (n equidistantly distributed classes)
     #    - Select one candidate by class
     #
@@ -347,10 +341,10 @@ def find_possible_glaciers(gdir, y0, ye, n, ex_mod=None, bias=0, delete=False):
 
     # 3. Evaluation
     #    - Run each candidate forward from y0 to ye
-    #    - Evaluate candidates based on the fitnessfunction
+    #    - Evaluate candidates based on the fitness function
     #    - Save all models in pd.DataFrame and write pickle
     #    - copy all model_run files to tarfile
-    results = evaluation(gdir, candidate_list, y0, ye, ex_mod, bias, delete)
+    results = evaluation(gdir, candidate_list, y0, ye, ex_mod, mb_offset, delete)
 
 
     # find acceptable, 5th percentile and median
@@ -436,7 +430,7 @@ def find_possible_glaciers(gdir, y0, ye, n, ex_mod=None, bias=0, delete=False):
     return results
 
 
-def generation(gdir, y0, bias):
+def generation(gdir, y0, mb_offset):
 
     """
     creates a pandas.DataFrame() with ALL created states. A subset of them will
@@ -449,14 +443,14 @@ def generation(gdir, y0, bias):
     # try range (2,-3) first  --> 100 runs
     bias_list = [b.round(3) for b in np.arange(-3, 2, 0.05)]
     list = [(i ** 2, b) for i, b in enumerate(bias_list)]
-    random_run_list = _run_random_parallel(gdir, y0, list, bias)
+    random_run_list = _run_random_parallel(gdir, y0, list, mb_offset)
 
     # if temp bias = -3 does not create a glacier that exceeds boundary, we test further up to -5
     if random_run_list['temp_bias'].min() == -3:
         n = len(random_run_list)
         bias_list = [b.round(3) for b in np.arange(-5, -3, 0.05)]
         list = [((i+n+1) ** 2, b) for i, b in enumerate(bias_list)]
-        random_run_list = random_run_list.append(_run_random_parallel(gdir, y0, list, bias), ignore_index=True)
+        random_run_list = random_run_list.append(_run_random_parallel(gdir, y0, list, mb_offset), ignore_index=True)
 
     # check for zero glacier
     max_bias = random_run_list['temp_bias'].idxmax()
@@ -470,12 +464,12 @@ def generation(gdir, y0, bias):
     if not fmod.volume_m3_ts().min() == 0:
         n = len(random_run_list)
         list = [((i + n + 1) ** 2, b.round(3)) for i, b in enumerate(np.arange(2.05, 3, 0.05))]
-        random_run_list = random_run_list.append(_run_random_parallel(gdir, y0, list, bias), ignore_index=True)
+        random_run_list = random_run_list.append(_run_random_parallel(gdir, y0, list, mb_offset), ignore_index=True)
     random_run_list = random_run_list.sort_values(by='temp_bias')
     return random_run_list
 
 
-def evaluation(gdir, fls_list, y0, ye, emod, bias, delete):
+def evaluation(gdir, fls_list, y0, ye, emod, mb_offset, delete):
 
     """
     Creates a pd.DataFrame() containing all tested glaciers candidates in year
@@ -490,7 +484,7 @@ def evaluation(gdir, fls_list, y0, ye, emod, bias, delete):
     # run candidates until present
     pool = Pool()
     suffix_list = pool.map(partial(_run_to_present, gdir=gdir, ys=y0,
-                                 ye=ye, bias=bias), fls_list)
+                                 ye=ye, bias=mb_offset), fls_list)
     pool.close()
     pool.join()
 
@@ -499,7 +493,7 @@ def evaluation(gdir, fls_list, y0, ye, emod, bias, delete):
 
     if emod is None:
         # read experiment
-        ep = gdir.get_filepath('model_run', filesuffix='_experiment')
+        ep = gdir.get_filepath('model_run', filesuffix='_synthetic_experiment')
         emod = FileModel(ep)
     emod_t = copy.deepcopy(emod)
     emod_t.run_until(ye)
@@ -621,14 +615,14 @@ def preprocessing(gdirs):
 
 def synthetic_experiments_parallel(gdirs, t0, te):
     """
-    creates searched and observed glacier to test the method, need only to
+    creates the synthetic experiments for all glaciers in gdirs in parallel, need only to
     be run once
 
     :param gdirs: list of oggm.GlacierDirectories
     :return:
     """
     reset = True
-    if os.path.isfile(gdirs[0].get_filepath('synthetic_experiment')):
+    if os.path.isfile(gdirs[0].get_filepath('model_run', filesuffix='_synthetic_experiment')):
         reset = utils.query_yes_no(
             'Running the function synthetic_experiments'
             ' will reset the previous results. Are you '
