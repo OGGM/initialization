@@ -1,4 +1,5 @@
 
+import os
 from functools import partial
 from pylab import *
 from oggm.core.flowline import FluxBasedModel, FileModel
@@ -14,6 +15,7 @@ from matplotlib.ticker import MaxNLocator
 
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 pd.options.mode.chained_assignment = None
+import warnings
 warnings.filterwarnings("ignore")
 
 mpl.rcParams['axes.linewidth'] = 3
@@ -50,7 +52,7 @@ class HandlerColorLineCollection(HandlerLineCollection):
         return [lc]
 
 
-def plot_experiment(gdir, ex_mod, ys, plot_dir):
+def plot_experiment(gdir, ex_mod, t0, te, plot_dir):
 
     x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * \
         ex_mod.fls[-1].map_dx
@@ -67,17 +69,17 @@ def plot_experiment(gdir, ex_mod, ys, plot_dir):
 
     # plot experiments.py, run until ys
     ex_mod = deepcopy(ex_mod)
-    ex_mod.reset_y0(ys)
-    ex_mod.run_until(ys)
+    ex_mod.reset_y0(t0)
+    ex_mod.run_until(t0)
     i = ex_mod.fls[-1].nx
     ax1.plot(x[:i], ex_mod.fls[-1].surface_h[:i], 'k:',
-             label=r'$z_{'+str(ys)+'}^{exp}$', linewidth=3)
+             label=r'$z_{'+str(t0)+'}^{exp}$', linewidth=3)
     ax1.plot(x[:i], ex_mod.fls[-1].bed_h[:i], 'k', label=r'$b$', linewidth=3)
 
-    ex_mod.run_until(2000)
+    ex_mod.run_until(te)
 
     ax2.plot(x[:i], ex_mod.fls[-1].surface_h[:i], 'k:',
-             label=r'$z_{2000}^{exp = obs} $', linewidth=3)
+             label=r'$z_{'+str(te)+'}^{exp = obs} $', linewidth=3)
     ax2.plot(x[:i], ex_mod.fls[-1].bed_h[:i], 'k', label=r'$b$', linewidth=3)
 
     # add figure names and legends
@@ -95,13 +97,13 @@ def plot_experiment(gdir, ex_mod, ys, plot_dir):
     ax1.tick_params(axis='both', which='major')
     ax2.tick_params(axis='both', which='major')
 
-    plot_dir = os.path.join(plot_dir, '00_experiment')
+    plot_dir = os.path.join(plot_dir, '00_synthetic_experiment')
     utils.mkdir(plot_dir)
-    fig_name = 'experiment_'+str(ys)+'_'+gdir.rgi_id
+    fig_name = 'synthetic_experiment_'+str(t0)+'_'+gdir.rgi_id
     plt.savefig(os.path.join(plot_dir, fig_name+'.pdf'), dpi=300)
     plt.savefig(os.path.join(plot_dir, fig_name+'.png'), dpi=300)
-    # plt.show()
-    plt.close()
+    plt.show()
+    #plt.close()
 
 
 def plot_candidates(gdir, df, yr, step, plot_dir):
@@ -182,7 +184,7 @@ def plot_candidates(gdir, df, yr, step, plot_dir):
                                  str(gdir.rgi_id) + '.png'), dpi=300)
         plt.show()
 
-    plt.close()
+    #plt.close()
 
     plt.figure(figsize=(15, 14))
     plt.hist(df.volume.values, bins=20)
@@ -544,7 +546,7 @@ def plot_median(gdir, df, eps, ex_mod, ys, ye, plot_dir):
     fig_name = 'median_'+str(ys)+'_'+gdir.rgi_id
     plt.savefig(os.path.join(plot_dir, fig_name+'.pdf'), dpi=300)
     #plt.savefig(os.path.join(plot_dir, fig_name+'.png'), dpi=300)
-    #plt.show()
-    plt.close()
+    plt.show()
+    #plt.close()
 
     return median_model
