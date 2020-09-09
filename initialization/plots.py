@@ -1,5 +1,4 @@
 
-import os
 from functools import partial
 from pylab import *
 from oggm.core.flowline import FluxBasedModel, FileModel
@@ -16,6 +15,7 @@ from matplotlib.ticker import MaxNLocator
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 pd.options.mode.chained_assignment = None
 import warnings
+
 warnings.filterwarnings("ignore")
 
 mpl.rcParams['axes.linewidth'] = 3
@@ -52,6 +52,7 @@ class HandlerColorLineCollection(HandlerLineCollection):
         return [lc]
 
 
+
 def plot_experiment(gdir, ex_mod, t0, te, plot_dir):
 
     x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * \
@@ -74,11 +75,13 @@ def plot_experiment(gdir, ex_mod, t0, te, plot_dir):
     i = ex_mod.fls[-1].nx
     ax1.plot(x[:i], ex_mod.fls[-1].surface_h[:i], 'k:',
              label=r'$z_{'+str(t0)+'}^{exp}$', linewidth=3)
+
     ax1.plot(x[:i], ex_mod.fls[-1].bed_h[:i], 'k', label=r'$b$', linewidth=3)
 
     ex_mod.run_until(te)
 
     ax2.plot(x[:i], ex_mod.fls[-1].surface_h[:i], 'k:',
+
              label=r'$z_{'+str(te)+'}^{exp = obs} $', linewidth=3)
     ax2.plot(x[:i], ex_mod.fls[-1].bed_h[:i], 'k', label=r'$b$', linewidth=3)
 
@@ -104,6 +107,7 @@ def plot_experiment(gdir, ex_mod, t0, te, plot_dir):
     plt.savefig(os.path.join(plot_dir, fig_name+'.png'), dpi=300)
     plt.show()
     #plt.close()
+
 
 
 def plot_candidates(gdir, df, yr, step, plot_dir):
