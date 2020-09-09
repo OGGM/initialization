@@ -1,1 +1,3 @@
-notebook/* linguist-vendored
+examples/* linguist-vendored
+
+*.ipynb linguist-language=Python
