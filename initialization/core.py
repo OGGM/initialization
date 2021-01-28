@@ -38,7 +38,7 @@ def _single_calibration_run(gdir, mb_offset, ys,ye):
 
     # check, if this model_run already exists
     try:
-        rp = gdir.get_filepath('model_run', filesuffix='_calibration_past'+ str(mb_offset))
+        rp = gdir.get_filepath('model_run', filesuffix='_calibration_past_'+ str(mb_offset))
         model = FileModel(rp)
 
     # otherwise create calibration_run with mb_offset
@@ -47,16 +47,16 @@ def _single_calibration_run(gdir, mb_offset, ys,ye):
             fls = gdir.read_pickle('model_flowlines')
             # run a 600 years random run with mb_offset
             model = tasks.run_random_climate(gdir, nyears=600, y0=ys, bias=mb_offset, seed=1,
-                                             init_model_fls=fls,output_filesuffix='_calibration_random'+str(mb_offset) )
+                                             init_model_fls=fls,output_filesuffix='_calibration_random_'+str(mb_offset) )
 
             # construct s_OGGM --> previous glacier will be run forward from
             # ys - ye with past climate file
 
             fls = copy.deepcopy(model.fls)
             tasks.run_from_climate_data(gdir, ys=ys, ye=ye, init_model_fls=fls,bias=mb_offset,
-                                        output_filesuffix='_calibration_past'+str(mb_offset))
+                                        output_filesuffix='_calibration_past_'+str(mb_offset))
             # return FileModel
-            rp = gdir.get_filepath('model_run',filesuffix='_calibration_past' + str(mb_offset))
+            rp = gdir.get_filepath('model_run',filesuffix='_calibration_past_' + str(mb_offset))
             model = FileModel(rp)
 
         except:
@@ -121,10 +121,10 @@ def _run_to_present(tupel, gdir, ys, ye, mb_offset):
         except:
             return None
 
-def calibration_runs(gdirs, temp_bias_list ,ys ):
+def calibration_runs(gdirs, ys ):
 
     pool = Pool()
-    pool.map(partial(find_mb_offset,temp_bias_list=temp_bias_list,ys=ys),gdirs)
+    pool.map(partial(find_mb_offset,ys=ys),gdirs)
     pool.close()
     pool.join()
 
@@ -167,10 +167,13 @@ def find_mb_offset(gdir, ys, a=-2000, b=2000):
 
         # best mb_offset found
         mb_offset = df.iloc[df.area_diff.abs().idxmin()].mb_offset
+
         df.to_csv(os.path.join(gdir.dir,'experiment_iteration.csv'))
 
         for file in os.listdir(gdir.dir):
-            if file.startswith('model') and file.endswith('.nc') and not file.endswith('_'+str(mb_offset)+'.nc'):
+            if file.startswith('model_run_calibration') and file.endswith('.nc') and not file.endswith('_'+str(mb_offset)+'.nc'):
+                os.remove(os.path.join(gdir.dir,file))
+            if file.startswith('model_diagnostics_calibration') and file.endswith('.nc') and not file.endswith('_'+str(mb_offset)+'.nc'):
                 os.remove(os.path.join(gdir.dir,file))
 
 
@@ -185,7 +188,7 @@ def _run_random_parallel(gdir, y0, list, mb_offset):
     Parallelize the run_random_task.
     """
     pool = Pool()
-    paths = pool.map(partial(_run_random_task, gdir=gdir, y0=y0, bias=mb_offset), list)
+    paths = pool.map(partial(_run_random_task, gdir=gdir, y0=y0, mb_offset=mb_offset), list)
     pool.close()
     pool.join()
 
@@ -484,7 +487,7 @@ def evaluation(gdir, fls_list, y0, ye, emod, mb_offset, delete):
     # run candidates until present
     pool = Pool()
     suffix_list = pool.map(partial(_run_to_present, gdir=gdir, ys=y0,
-                                 ye=ye, bias=mb_offset), fls_list)
+                                 ye=ye, mb_offset=mb_offset), fls_list)
     pool.close()
     pool.join()
 
