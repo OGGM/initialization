@@ -1,4 +1,4 @@
-
+import os
 from functools import partial
 from pylab import *
 from oggm.core.flowline import FluxBasedModel, FileModel
@@ -6,7 +6,8 @@ from oggm import utils
 from matplotlib import cm
 import pandas as pd
 from copy import deepcopy
-from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
+#from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
+from matplotlib.offsetbox import AnchoredText
 import matplotlib as mpl
 from matplotlib.collections import LineCollection
 from matplotlib.legend_handler import HandlerLineCollection
@@ -14,6 +15,8 @@ from matplotlib.ticker import MaxNLocator
 
 FlowlineModel = partial(FluxBasedModel, inplace=False)
 pd.options.mode.chained_assignment = None
+import warnings
+
 warnings.filterwarnings("ignore")
 
 mpl.rcParams['axes.linewidth'] = 3
@@ -50,7 +53,8 @@ class HandlerColorLineCollection(HandlerLineCollection):
         return [lc]
 
 
-def plot_experiment(gdir, ex_mod, ys, plot_dir):
+
+def plot_experiment(gdir, ex_mod, t0, te, plot_dir):
 
     x = np.arange(ex_mod.fls[-1].nx) * ex_mod.fls[-1].dx * \
         ex_mod.fls[-1].map_dx
@@ -67,17 +71,19 @@ def plot_experiment(gdir, ex_mod, ys, plot_dir):
 
     # plot experiments.py, run until ys
     ex_mod = deepcopy(ex_mod)
-    ex_mod.reset_y0(ys)
-    ex_mod.run_until(ys)
+    ex_mod.reset_y0(t0)
+    ex_mod.run_until(t0)
     i = ex_mod.fls[-1].nx
     ax1.plot(x[:i], ex_mod.fls[-1].surface_h[:i], 'k:',
-             label=r'$z_{'+str(ys)+'}^{exp}$', linewidth=3)
+             label=r'$z_{'+str(t0)+'}^{exp}$', linewidth=3)
+
     ax1.plot(x[:i], ex_mod.fls[-1].bed_h[:i], 'k', label=r'$b$', linewidth=3)
 
-    ex_mod.run_until(2000)
+    ex_mod.run_until(te)
 
     ax2.plot(x[:i], ex_mod.fls[-1].surface_h[:i], 'k:',
-             label=r'$z_{2000}^{exp = obs} $', linewidth=3)
+
+             label=r'$z_{'+str(te)+'}^{exp = obs} $', linewidth=3)
     ax2.plot(x[:i], ex_mod.fls[-1].bed_h[:i], 'k', label=r'$b$', linewidth=3)
 
     # add figure names and legends
@@ -95,13 +101,14 @@ def plot_experiment(gdir, ex_mod, ys, plot_dir):
     ax1.tick_params(axis='both', which='major')
     ax2.tick_params(axis='both', which='major')
 
-    plot_dir = os.path.join(plot_dir, '00_experiment')
+    plot_dir = os.path.join(plot_dir, '00_synthetic_experiment')
     utils.mkdir(plot_dir)
-    fig_name = 'experiment_'+str(ys)+'_'+gdir.rgi_id
+    fig_name = 'synthetic_experiment_'+str(t0)+'_'+gdir.rgi_id
     plt.savefig(os.path.join(plot_dir, fig_name+'.pdf'), dpi=300)
     plt.savefig(os.path.join(plot_dir, fig_name+'.png'), dpi=300)
-    # plt.show()
-    plt.close()
+    plt.show()
+    #plt.close()
+
 
 
 def plot_candidates(gdir, df, yr, step, plot_dir):
@@ -182,7 +189,7 @@ def plot_candidates(gdir, df, yr, step, plot_dir):
                                  str(gdir.rgi_id) + '.png'), dpi=300)
         plt.show()
 
-    plt.close()
+    #plt.close()
 
     plt.figure(figsize=(15, 14))
     plt.hist(df.volume.values, bins=20)
@@ -258,7 +265,7 @@ def plot_fitness_over_time(gdir, df_list, ex_mod, plot_dir):
     # plt.show()
 
 
-def plot_fitness_values(gdir, df, ex_mod, ys, plot_dir):
+def plot_fitness_values(gdir, df, ex_mod, ys,ye, plot_dir):
 
     plot_dir = os.path.join(plot_dir, '03_surface_by_fitness')
     utils.mkdir(plot_dir)
@@ -291,7 +298,7 @@ def plot_fitness_values(gdir, df, ex_mod, ys, plot_dir):
         ax1.plot(x, deepcopy(model.fls[-1].surface_h), color=color,
                  label='')
         model.volume_km3_ts().plot(ax=ax3, color=[color], label='')
-        model.run_until(2000)
+        model.run_until(ye)
 
         ax2.plot(x, model.fls[-1].surface_h, color=color, label='')
 
@@ -300,14 +307,14 @@ def plot_fitness_values(gdir, df, ex_mod, ys, plot_dir):
     ex_mod.volume_km3_ts().plot(ax=ax3, color='red', linestyle=':',
                                linewidth=3,
                                label='')
-    ex_mod.reset_y0(1850)
+    ex_mod.reset_y0(ys)
     ex_mod.run_until(ys)
 
     ax1.plot(x, ex_mod.fls[-1].surface_h, ':', color='red', label='',
              linewidth=3)
     ax1.plot(x, ex_mod.fls[-1].bed_h, 'k', label='', linewidth=3)
 
-    ex_mod.run_until(2000)
+    ex_mod.run_until(ye)
 
     ax2.plot(x, ex_mod.fls[-1].surface_h, ':', color='red', label='',
              linewidth=3)
@@ -366,22 +373,22 @@ def plot_fitness_values(gdir, df, ex_mod, ys, plot_dir):
     l2 = ax2.legend(handles=[lc3, lc, lc2],
                     handler_map={
                         lc: HandlerColorLineCollection(numpoints=100)},
-                    labels=[r'$z_{2000}^{obs}$', r'$z_{2000}$',
+                    labels=[r'$z_{'+str(ye)+'}^{obs}$', r'$z_{'+str(ye)+'}$',
                             r'$b$'], loc=1)
 
     l3 = ax3.legend(handles=[lc3, lc],
                     handler_map={
                         lc: HandlerColorLineCollection(numpoints=100)},
-                    labels=[r'$s_{' + str(ys) + '-2000}^{exp}$',
-                            r'$s_{' + str(ys) +
-                            '-2000}$'], loc=1)
+                    labels=[r'$s_{' + str(ys) + '-' +str(ye)+ '}^{exp}$',
+                            r'$s_{' + str(ys) +'-' +str(ye)+
+                            '}$'], loc=1)
 
     l1.set_zorder(1)
     l2.set_zorder(1)
     l3.set_zorder(1)
 
 
-    ax3.set_xlim(xmin=1847, xmax=2003)
+    ax3.set_xlim(xmin=ys-3, xmax=ye+3)
     fig_name = 'surface_' + str(ys) + '_' + gdir.rgi_id
     #plt.savefig(os.path.join(plot_dir, fig_name + '.pdf'), dpi=300)
     plt.savefig(os.path.join(plot_dir, fig_name + '.png'), dpi=300)
@@ -419,7 +426,7 @@ def plot_median(gdir, df, eps, ex_mod, ys, ye, plot_dir):
         model = deepcopy(df.loc[i, 'model'])
         s_t0 = s_t0.append(pd.Series(model.fls[-1].surface_h),
                                  ignore_index=True)
-        model.run_until(2000)
+        model.run_until(ye)
         s_te = s_te.append(pd.Series(model.fls[-1].surface_h),
                                  ignore_index=True)
         v = v.append(model.volume_km3_ts(), ignore_index=True)
@@ -445,7 +452,7 @@ def plot_median(gdir, df, eps, ex_mod, ys, ye, plot_dir):
         model = deepcopy(df.loc[i, 'model'])
         s_t0 = s_t0.append(pd.Series(model.fls[-1].surface_h),
                            ignore_index=True)
-        model.run_until(2000)
+        model.run_until(ye)
         s_te = s_te.append(pd.Series(model.fls[-1].surface_h),
                            ignore_index=True)
         v = v.append(model.volume_km3_ts(), ignore_index=True)
@@ -454,10 +461,10 @@ def plot_median(gdir, df, eps, ex_mod, ys, ye, plot_dir):
                      label=r'$Q_{0.05}(\mathcal{S}_{'+str(ys)+'}^{'+str(eps)+'})$')
 
     ax2.fill_between(x, s_te.max().values, s_te.min().values, alpha=0.5,
-                     label=r'$Q_{0.05}(\mathcal{S}_{2000}^{'+str(eps)+'})$')
+                     label=r'$Q_{0.05}(\mathcal{S}_{'+str(ye)+'}^{'+str(eps)+'})$')
 
     ax3.fill_between(v.columns, v.max().values, v.min().values, alpha=0.5, linewidth=3,
-                     label=r'$Q_{0.05}(\mathcal{S}_{'+str(ys)+'-2000}^{'+str(eps)+'})$')
+                     label=r'$Q_{0.05}(\mathcal{S}_{'+str(ys)+'-'+str(ye)+'}^{'+str(eps)+'})$')
 
     # median of 5% quantile
     df.loc[:, 'length'] = df.model.apply(lambda x: x.length_m)
@@ -469,45 +476,45 @@ def plot_median(gdir, df, eps, ex_mod, ys, ye, plot_dir):
         index = int(l / 2)
 
     median_model = deepcopy(df.iloc[index].model)
-    median_model.volume_km3_ts().plot(ax=ax3, linewidth=3, label=r'$s_{1850-2000}^{med}$')
-    median_model.reset_y0(1850)
+    median_model.volume_km3_ts().plot(ax=ax3, linewidth=3, label=r'$s_{'+str(ys)+'-'+str(ye)+'}^{med}$')
+    median_model.reset_y0(ys)
     median_model.run_until(ys)
 
-    ax1.plot(x, median_model.fls[-1].surface_h, label=r'$z_{1850}^{med}$',
+    ax1.plot(x, median_model.fls[-1].surface_h, label=r'$z_{'+str(ys)+'}^{med}$',
              linewidth=3)
-    median_model.run_until(2000)
-    ax2.plot(x, median_model.fls[-1].surface_h, label=r'$z_{2000}^{med}$',
+    median_model.run_until(ye)
+    ax2.plot(x, median_model.fls[-1].surface_h, label=r'$z_{'+str(ye)+'}^{med}$',
              linewidth=3)
 
     # min model
     min_mod = deepcopy(df.loc[df.fitness.idxmin(), 'model'])
     min_mod.volume_km3_ts().plot(ax=ax3, color='C1',
-                                linewidth=3, label=r'$s_{1850-2000}^{min}$')
+                                linewidth=3, label=r'$s_{'+str(ys)+'-'+str(ye)+'}^{min}$')
     min_mod.reset_y0(ys)
     min_mod.run_until(ys)
 
-    ax1.plot(x, min_mod.fls[-1].surface_h, 'C1', label=r'$z_{1850}^{min}$',
+    ax1.plot(x, min_mod.fls[-1].surface_h, 'C1', label=r'$z_{'+str(ys)+'}^{min}$',
              linewidth=3)
 
     min_mod.run_until(ye)
 
-    ax2.plot(x, min_mod.fls[-1].surface_h, 'C1', label=r'$z_{2000}^{min}$',
+    ax2.plot(x, min_mod.fls[-1].surface_h, 'C1', label=r'$z_{'+str(ye)+'}^{min}$',
              linewidth=3)
 
     # experiment
     ex_mod = deepcopy(ex_mod)
     ex_mod.volume_km3_ts().plot(ax=ax3, color='k', linestyle=':',
-                               linewidth=3, label=r'$s_{1850-2000}^{exp}$')
-    ex_mod.reset_y0(1850)
+                               linewidth=3, label=r'$s_{'+str(ys)+'-'+str(ye)+'}^{exp}$')
+    ex_mod.reset_y0(ys)
     ex_mod.run_until(ys)
 
-    ax1.plot(x, ex_mod.fls[-1].surface_h, 'k:', label=r'$z_{1850}^{exp}$',
+    ax1.plot(x, ex_mod.fls[-1].surface_h, 'k:', label=r'$z_{'+str(ys)+'}^{exp}$',
              linewidth=3)
     ax1.plot(x, ex_mod.fls[-1].bed_h, 'k', label=r'$b$', linewidth=3)
 
-    ex_mod.run_until(2000)
+    ex_mod.run_until(ye)
 
-    ax2.plot(x, ex_mod.fls[-1].surface_h, 'k:', label=r'$z_{1850}^{exp}$',
+    ax2.plot(x, ex_mod.fls[-1].surface_h, 'k:', label=r'$z_{'+str(ys)+'}^{exp}$',
              linewidth=3)
     ax2.plot(x, ex_mod.fls[-1].bed_h, 'k', label=r'$b$', linewidth=3)
 
@@ -527,7 +534,7 @@ def plot_median(gdir, df, eps, ex_mod, ys, ye, plot_dir):
     ax2.tick_params(axis='both', which='major', labelsize=30)
     ax3.tick_params(axis='both', which='major', labelsize=30)
     ax3.yaxis.offsetText.set_fontsize(30)
-    ax3.set_xlim(xmin=1847, xmax=2003)
+    ax3.set_xlim(xmin=ys-3, xmax=ye+3)
 
     ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -544,7 +551,7 @@ def plot_median(gdir, df, eps, ex_mod, ys, ye, plot_dir):
     fig_name = 'median_'+str(ys)+'_'+gdir.rgi_id
     plt.savefig(os.path.join(plot_dir, fig_name+'.pdf'), dpi=300)
     #plt.savefig(os.path.join(plot_dir, fig_name+'.png'), dpi=300)
-    #plt.show()
-    plt.close()
+    plt.show()
+    #plt.close()
 
     return median_model
