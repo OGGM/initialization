@@ -21,8 +21,9 @@ Our method consists of 3 steps and the workflow is shown in the following figure
 
 The current version was tested on glaciers located in the Alps and we reconstruct their state in 1850 by using synthetic
 experiments. Thus the reconstructed glacier states did not represent the reality and need to be handled with caution.
+
 A further development that will also allow the application to real-world cases is under development and a new manuscript
-is already submitted.
+will be published soon.
 
 In most cases, the resulting reconstruction is non-unique, as multiple initial states
 converge towards the observed state in the year of observation.
