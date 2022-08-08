@@ -32,13 +32,13 @@ def _find_extrema(ts):
 
 def _single_calibration_run(gdir, mb_offset, ys,ye):
     """
-    Creates the synthetic experiment for one glacier. model_run_experiment.nc
+    Creates the synthetic experiment for one glacier. model_geometry_experiment.nc
     will be saved in working directory.
     """
 
-    # check, if this model_run already exists
+    # check, if this model_geometry already exists
     try:
-        rp = gdir.get_filepath('model_run', filesuffix='_calibration_past_'+ str(mb_offset))
+        rp = gdir.get_filepath('model_geometry', filesuffix='_calibration_past_'+ str(mb_offset))
         model = FileModel(rp)
 
     # otherwise create calibration_run with mb_offset
@@ -56,7 +56,7 @@ def _single_calibration_run(gdir, mb_offset, ys,ye):
             tasks.run_from_climate_data(gdir, ys=ys, ye=ye, init_model_fls=fls,bias=mb_offset,
                                         output_filesuffix='_calibration_past_'+str(mb_offset))
             # return FileModel
-            rp = gdir.get_filepath('model_run',filesuffix='_calibration_past_' + str(mb_offset))
+            rp = gdir.get_filepath('model_geometry',filesuffix='_calibration_past_' + str(mb_offset))
             model = FileModel(rp)
 
         except:
@@ -72,7 +72,7 @@ def _single_calibration_run(gdir, mb_offset, ys,ye):
 
 def _run_parallel_experiment(gdir, t0, te):
     """
-    Creates the synthetic experiment for one glacier. model_run_synthetic_experiment.nc
+    Creates the synthetic experiment for one glacier. model_geometry_synthetic_experiment.nc
     will be saved in working directory.
     """
     try:
@@ -99,8 +99,8 @@ def _run_to_present(tupel, gdir, ys, ye, mb_offset):
     Run glacier candidates forwards.
     """
     suffix = tupel[0]
-    #path = gdir.get_filepath('model_run', filesuffix=suffix)
-    path = os.path.join(gdir.dir, str(ys), 'model_run' + suffix + '.nc')
+    #path = gdir.get_filepath('model_geometry', filesuffix=suffix)
+    path = os.path.join(gdir.dir, str(ys), 'model_geometry' + suffix + '.nc')
     # does file already exists?
     if not os.path.exists(path):
         try:
@@ -171,7 +171,7 @@ def find_mb_offset(gdir, ys, a=-2000, b=2000):
         df.to_csv(os.path.join(gdir.dir,'experiment_iteration.csv'))
 
         for file in os.listdir(gdir.dir):
-            if file.startswith('model_run_calibration') and file.endswith('.nc') and not file.endswith('_'+str(mb_offset)+'.nc'):
+            if file.startswith('model_geometry_calibration') and file.endswith('.nc') and not file.endswith('_'+str(mb_offset)+'.nc'):
                 os.remove(os.path.join(gdir.dir,file))
             if file.startswith('model_diagnostics_calibration') and file.endswith('.nc') and not file.endswith('_'+str(mb_offset)+'.nc'):
                 os.remove(os.path.join(gdir.dir,file))
@@ -212,8 +212,8 @@ def _run_random_task(tupel, gdir, y0, mb_offset):
     temp_bias = tupel[1]
     fls = gdir.read_pickle('model_flowlines')
     suffix = str(y0) + '_random_'+str(seed) + '_' + str(temp_bias)
-    #path = gdir.get_filepath('model_run', filesuffix=suffix)
-    path = os.path.join(gdir.dir, str(y0),'model_run'+suffix+'.nc')
+    #path = gdir.get_filepath('model_rgeometry', filesuffix=suffix)
+    path = os.path.join(gdir.dir, str(y0),'model_geometry'+suffix+'.nc')
 
     # does file already exists?
     if not os.path.exists(path):
@@ -241,7 +241,7 @@ def _run_file_model(suffix, gdir, ye):
     """
     Read FileModel and run it until ye
     """
-    rp = gdir.get_filepath('model_run', filesuffix=suffix)
+    rp = gdir.get_filepath('model_geometry', filesuffix=suffix)
     fmod = FileModel(rp)
     fmod.run_until(ye)
     return copy.deepcopy(fmod)
@@ -263,10 +263,10 @@ def identification(gdir, list, ys, ye, n):
     for suffix in list['suffix'].values:
         if i < 10:
             try:
-                rp = gdir.get_filepath('model_run', filesuffix=suffix)
+                rp = gdir.get_filepath('model_geometry', filesuffix=suffix)
                 if not os.path.exists(rp):
                     rp = os.path.join(gdir.dir,str(ys),
-                                      'model_run'+suffix+'.nc')
+                                      'model_geometry'+suffix+'.nc')
                 fmod = FileModel(rp)
                 t = _find_extrema(fmod.volume_m3_ts())
                 if t > t_stag:
@@ -282,12 +282,12 @@ def identification(gdir, list, ys, ye, n):
     df = pd.DataFrame()
     for suffix in list['suffix']:
         try:
-            rp = gdir.get_filepath('model_run', filesuffix=suffix)
+            rp = gdir.get_filepath('model_geometry', filesuffix=suffix)
             if not os.path.exists(rp):
                 rp = os.path.join(gdir.dir, str(ys),
-                                  'model_run' + suffix + '.nc')
+                                  'model_geometry' + suffix + '.nc')
             fmod = FileModel(rp)
-            v = pd.DataFrame(fmod.volume_m3_ts()).reset_index()
+            v = pd.DataFrame(fmod.volume_m3_ts()).rename_axis('time').reset_index()
             v = v[v['time'] >= t_stag]
             v = v.assign(suffix=lambda x: suffix)
             df = df.append(v, ignore_index=True)
@@ -296,17 +296,17 @@ def identification(gdir, list, ys, ye, n):
 
     indices = []
     # find nearest glacier state for each of the n volume classes (equidistant)
-    for val in np.linspace(df.ts_section.min(), df.ts_section.max(), n):
-        index = df.iloc[(df['ts_section'] - val).abs().argsort()][:1].index[0]
+    for val in np.linspace(df.volume_m3.min(), df.volume_m3.max(), n):
+        index = df.iloc[(df['volume_m3'] - val).abs().argsort()][:1].index[0]
         if not index in indices:
             indices = np.append(indices, index)
     candidates = df.loc[indices]
     candidates = candidates.sort_values(['suffix', 'time'])
     candidates['fls_t0'] = None
     for suffix in candidates['suffix'].unique():
-        rp = gdir.get_filepath('model_run', filesuffix=suffix)
+        rp = gdir.get_filepath('model_geometry', filesuffix=suffix)
         if not os.path.exists(rp):
-            rp = os.path.join(gdir.dir, str(ys), 'model_run' + suffix + '.nc')
+            rp = os.path.join(gdir.dir, str(ys), 'model_geometry' + suffix + '.nc')
         fmod = FileModel(rp)
         for i, t in candidates[candidates['suffix'] == suffix]['time'].iteritems():
             fmod.run_until(t)
@@ -346,7 +346,7 @@ def find_possible_glaciers(gdir, y0, ye, n, ex_mod=None, mb_offset=0, delete=Fal
     #    - Run each candidate forward from y0 to ye
     #    - Evaluate candidates based on the fitness function
     #    - Save all models in pd.DataFrame and write pickle
-    #    - copy all model_run files to tarfile
+    #    - copy all model_geometry files to tarfile
     results = evaluation(gdir, candidate_list, y0, ye, ex_mod, mb_offset, delete)
 
 
@@ -404,12 +404,12 @@ def find_possible_glaciers(gdir, y0, ye, n, ex_mod=None, mb_offset=0, delete=Fal
 
         # delete other files
         for file in os.listdir(gdir.dir):
-            if file.startswith('model_run' + (str(y0))):
+            if file.startswith('model_geometry' + (str(y0))):
                 if not file in set(save.values()):
                     os.remove(os.path.join(gdir.dir, file))
 
                     # remove diagnostic file, too
-                    file = file.split('model_run')
+                    file = file.split('model_geometry')
                     file.insert(0, 'model_diagnostics')
                     file = os.path.join(gdir.dir,''.join(file))
                     try:
@@ -419,12 +419,12 @@ def find_possible_glaciers(gdir, y0, ye, n, ex_mod=None, mb_offset=0, delete=Fal
 
     else:
 
-        # move all model_run* files from year y0 to a new directory --> avoids
+        # move all model_geometry* files from year y0 to a new directory --> avoids
         # that thousand of thousands files are created in gdir.dir
 
         utils.mkdir(os.path.join(gdir.dir, str(y0)), reset=False)
         for file in os.listdir(gdir.dir):
-            if file.startswith('model_run' + (str(y0))):
+            if file.startswith('model_geometry' + (str(y0))):
                 os.rename(os.path.join(gdir.dir, file),
                           os.path.join(gdir.dir, str(y0), file))
             elif file.startswith('model_diagnostics' + (str(y0))):
@@ -459,9 +459,9 @@ def generation(gdir, y0, mb_offset):
     max_bias = random_run_list['temp_bias'].idxmax()
     max_suffix = random_run_list.loc[max_bias, 'suffix']
 
-    p = gdir.get_filepath('model_run',filesuffix=max_suffix)
+    p = gdir.get_filepath('model_geometry',filesuffix=max_suffix)
     if not os.path.exists(p):
-        p = os.path.join(gdir.dir, str(y0), 'model_run' + max_suffix + '.nc')
+        p = os.path.join(gdir.dir, str(y0), 'model_geometry' + max_suffix + '.nc')
     fmod = FileModel(p)
 
     if not fmod.volume_m3_ts().min() == 0:
@@ -476,7 +476,7 @@ def evaluation(gdir, fls_list, y0, ye, emod, mb_offset, delete):
 
     """
     Creates a pd.DataFrame() containing all tested glaciers candidates in year
-    yr. Read all "model_run+str(yr)+_past*.nc" files in gdir.dir
+    yr. Read all "model_geometry+str(yr)+_past*.nc" files in gdir.dir
     :param gdir:        oggm.GlacierDirectory
     :param fls_list:    array with tupels [suffix, fls]
     :param y0:          int, year of searched glacier
@@ -492,11 +492,11 @@ def evaluation(gdir, fls_list, y0, ye, emod, mb_offset, delete):
     pool.join()
 
     df = pd.DataFrame()
-    prefix = 'model_run'+str(y0)+'_past'
+    prefix = 'model_geomtry'+str(y0)+'_past'
 
     if emod is None:
         # read experiment
-        ep = gdir.get_filepath('model_run', filesuffix='_synthetic_experiment')
+        ep = gdir.get_filepath('model_geometry', filesuffix='_synthetic_experiment')
         emod = FileModel(ep)
     emod_t = copy.deepcopy(emod)
     emod_t.run_until(ye)
@@ -510,9 +510,9 @@ def evaluation(gdir, fls_list, y0, ye, emod, mb_offset, delete):
 
         try:
             # read past climate model runs and calculate objective
-            rp = gdir.get_filepath('model_run', filesuffix=f)
+            rp = gdir.get_filepath('model_geometry', filesuffix=f)
             if not os.path.exists(rp):
-                rp = os.path.join(gdir.dir, str(y0), 'model_run' + f + '.nc')
+                rp = os.path.join(gdir.dir, str(y0), 'model_geometry' + f + '.nc')
 
             fmod = FileModel(rp)
             fmod_t = copy.deepcopy(fmod)
@@ -607,10 +607,9 @@ def fitness_value(model1, model2, ye):
 def preprocessing(gdirs):
     """
     oggm workflow for preparing initializing
-    :param gdirs: list of oggm.GlacierDirectories
+    :param gdirs: list of oggm.GlacierDirectories from preprocessed level 2 onwards
     :return None, but creates required files
     """
-    workflow.gis_prepro_tasks(gdirs)
     workflow.climate_tasks(gdirs)
     workflow.inversion_tasks(gdirs)
     workflow.execute_entity_task(tasks.init_present_time_glacier, gdirs)
@@ -625,7 +624,7 @@ def synthetic_experiments_parallel(gdirs, t0, te):
     :return:
     """
     reset = True
-    if os.path.isfile(gdirs[0].get_filepath('model_run', filesuffix='_synthetic_experiment')):
+    if os.path.isfile(gdirs[0].get_filepath('model_geometry', filesuffix='_synthetic_experiment')):
         reset = utils.query_yes_no(
             'Running the function synthetic_experiments'
             ' will reset the previous results. Are you '

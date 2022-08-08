@@ -118,9 +118,9 @@ def plot_candidates(gdir, df, yr, step, plot_dir):
 
     for file in os.listdir(os.path.join(gdir.dir, str(yr))):
 
-        if file.startswith('model_run'+str(yr)+'_random'):
-            suffix = file.split('model_run')[1].split('.nc')[0]
-            rp = os.path.join(gdir.dir, str(yr), 'model_run'+suffix+'.nc')
+        if file.startswith('model_geometry'+str(yr)+'_random'):
+            suffix = file.split('model_geometry')[1].split('.nc')[0]
+            rp = os.path.join(gdir.dir, str(yr), 'model_geometry'+suffix+'.nc')
             try:
                 fmod = FileModel(rp)
                 fmod.volume_km3_ts().plot(ax=ax, color='grey', label='', zorder=1)
