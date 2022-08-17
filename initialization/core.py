@@ -46,25 +46,26 @@ def _single_calibration_run(gdir, mb_offset, ys,ye):
         try:
             fls = gdir.read_pickle('model_flowlines')
             # run a 600 years random run with mb_offset
-            model = tasks.run_random_climate(gdir, nyears=600, y0=ys, bias=mb_offset, seed=1,
-                                             init_model_fls=fls,output_filesuffix='_calibration_random_'+str(mb_offset) )
+            tasks.run_random_climate(gdir, nyears=600, y0=ys, bias=mb_offset, seed=1, init_model_fls=fls,
+                                     output_filesuffix='_calibration_random_'+str(mb_offset) )
 
             # construct s_OGGM --> previous glacier will be run forward from
             # ys - ye with past climate file
 
-            fls = copy.deepcopy(model.fls)
-            tasks.run_from_climate_data(gdir, ys=ys, ye=ye, init_model_fls=fls,bias=mb_offset,
+            tasks.run_from_climate_data(gdir, ys=ys, ye=ye, init_model_filesuffix='_calibration_random_'+str(mb_offset),
+                                        bias=mb_offset, init_model_yr=600,
                                         output_filesuffix='_calibration_past_'+str(mb_offset))
             # return FileModel
             rp = gdir.get_filepath('model_geometry',filesuffix='_calibration_past_' + str(mb_offset))
             model = FileModel(rp)
 
+
         except:
-            with open(os.path.join(gdir.dir,'log.txt')) as log:
-                error=list(log)[-1].split(';')[-1]
+            with open(os.path.join(gdir.dir, 'log.txt')) as log:
+
+                error = list(log)[-1].split(';')[-1]
+
             return error
-
-
 
     return model
 
@@ -78,37 +79,38 @@ def _run_parallel_experiment(gdir, t0, te):
     try:
         fls = gdir.read_pickle('model_flowlines')
         # try to run random climate with temperature bias -1
-
-        model = tasks.run_random_climate(gdir, nyears=600, y0=t0, bias=0, seed=1,
-                                         temperature_bias=-1,
-                                         init_model_fls=fls)
+        tasks.run_random_climate(gdir, nyears=600, y0=t0, bias=0, seed=1, temperature_bias=-1, init_model_fls=fls,
+                                 output_filesuffix='_random_synthetic_experiment')
 
         # construct observed glacier, previous glacier will be run forward from
         # t0 - te with past climate file
-        b = fls[-1].bed_h
+        tasks.run_from_climate_data(gdir, ys=t0, ye=te, init_model_filesuffix='_random_synthetic_experiment',
+                                    init_model_yr=600, output_filesuffix='_synthetic_experiment')
 
-        fls = copy.deepcopy(model.fls)
-        tasks.run_from_climate_data(gdir, ys=t0, ye=te, init_model_fls=fls,
-                                    output_filesuffix='_synthetic_experiment')
+        # remove output file from random run
+        os.remove(gdir.get_filepath('model_geometry',filesuffix='_random_synthetic_experiment'))
+        os.remove(gdir.get_filepath('model_diagnostics', filesuffix='_random_synthetic_experiment'))
     except:
         print('experiment failed : ' + str(gdir.rgi_id))
 
 
-def _run_to_present(tupel, gdir, ys, ye, mb_offset):
+def _run_to_present(array, gdir, ys, ye, mb_offset):
     """
     Run glacier candidates forwards.
     """
-    suffix = tupel[0]
-    #path = gdir.get_filepath('model_geometry', filesuffix=suffix)
-    path = os.path.join(gdir.dir, str(ys), 'model_geometry' + suffix + '.nc')
+    init_yr=array[0]
+    init_filesuffix=array[1]
+
+    s = init_filesuffix.split('_random')[-1]
+    output_filesuffix = str(ys) + '_past' + s + '_'+str(int(init_yr))
+
+    path = os.path.join(gdir.dir, str(ys), 'model_geometry' + output_filesuffix + '.nc')
     # does file already exists?
     if not os.path.exists(path):
         try:
-            tasks.run_from_climate_data(gdir, ys=ys, ye=ye, bias=mb_offset,
-                                        output_filesuffix=suffix,
-                                        init_model_fls=copy.deepcopy(
-                                        tupel[1].fls))
-            return suffix
+            tasks.run_from_climate_data(gdir, ys=ys, ye=ye, bias=mb_offset, init_model_filesuffix=init_filesuffix,
+                                        init_model_yr=init_yr, output_filesuffix=output_filesuffix)
+            return output_filesuffix
         # oggm failed --> probaly "glacier exeeds boundaries"
         except:
             return None
@@ -129,7 +131,6 @@ def calibration_runs(gdirs, ys ):
     pool.join()
 
 def find_mb_offset(gdir, ys, a=-2000, b=2000):
-
 
     try:
 
@@ -176,11 +177,8 @@ def find_mb_offset(gdir, ys, a=-2000, b=2000):
             if file.startswith('model_diagnostics_calibration') and file.endswith('.nc') and not file.endswith('_'+str(mb_offset)+'.nc'):
                 os.remove(os.path.join(gdir.dir,file))
 
-
     except:
         pass
-
-
 
 def _run_random_parallel(gdir, y0, list, mb_offset):
 
@@ -302,25 +300,9 @@ def identification(gdir, list, ys, ye, n):
             indices = np.append(indices, index)
     candidates = df.loc[indices]
     candidates = candidates.sort_values(['suffix', 'time'])
-    candidates['fls_t0'] = None
-    for suffix in candidates['suffix'].unique():
-        rp = gdir.get_filepath('model_geometry', filesuffix=suffix)
-        if not os.path.exists(rp):
-            rp = os.path.join(gdir.dir, str(ys), 'model_geometry' + suffix + '.nc')
-        fmod = FileModel(rp)
-        for i, t in candidates[candidates['suffix'] == suffix]['time'].iteritems():
-            fmod.run_until(t)
-            candidates.at[i, 'random_model_t0'] = copy.deepcopy(fmod)
-
     candidates = candidates.drop_duplicates()
-    fls_list = []
-    for i in candidates.index:
-        s = candidates.loc[int(i), 'suffix'].split('_random')[-1]
-        suffix = str(ys) + '_past' + s + '_'+str(int(candidates.loc[int(i), 'time']))
-        fls = candidates.loc[int(i), 'random_model_t0']
-        fls_list.append([suffix, fls])
-    return fls_list
 
+    return candidates[['time', 'suffix']]
 
 def find_possible_glaciers(gdir, y0, ye, n, ex_mod=None, mb_offset=0, delete=False):
 
@@ -340,14 +322,14 @@ def find_possible_glaciers(gdir, y0, ye, n, ex_mod=None, mb_offset=0, delete=Fal
     #    - Classification by volume (n equidistantly distributed classes)
     #    - Select one candidate by class
     #
-    candidate_list = identification(gdir, random_list, ys=y0, ye=ye, n=n)
+    candidate_df = identification(gdir, random_list, ys=y0, ye=ye, n=n)
 
     # 3. Evaluation
     #    - Run each candidate forward from y0 to ye
     #    - Evaluate candidates based on the fitness function
     #    - Save all models in pd.DataFrame and write pickle
     #    - copy all model_geometry files to tarfile
-    results = evaluation(gdir, candidate_list, y0, ye, ex_mod, mb_offset, delete)
+    results = evaluation(gdir, candidate_df, y0, ye, ex_mod, mb_offset, delete)
 
 
     # find acceptable, 5th percentile and median
@@ -472,13 +454,13 @@ def generation(gdir, y0, mb_offset):
     return random_run_list
 
 
-def evaluation(gdir, fls_list, y0, ye, emod, mb_offset, delete):
+def evaluation(gdir, cand_df, y0, ye, emod, mb_offset, delete):
 
     """
     Creates a pd.DataFrame() containing all tested glaciers candidates in year
     yr. Read all "model_geometry+str(yr)+_past*.nc" files in gdir.dir
     :param gdir:        oggm.GlacierDirectory
-    :param fls_list:    array with tupels [suffix, fls]
+    :param cand_df:     dataframe with init_model_filesuffix and init_time
     :param y0:          int, year of searched glacier
     :param ye:          int, year of observation
     :return:
@@ -487,7 +469,7 @@ def evaluation(gdir, fls_list, y0, ye, emod, mb_offset, delete):
     # run candidates until present
     pool = Pool()
     suffix_list = pool.map(partial(_run_to_present, gdir=gdir, ys=y0,
-                                 ye=ye, mb_offset=mb_offset), fls_list)
+                                 ye=ye, mb_offset=mb_offset), cand_df.to_numpy())
     pool.close()
     pool.join()
 
